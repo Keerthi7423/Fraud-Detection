@@ -1,0 +1,2323 @@
+====================================================
+  FRAUDGUARD — MICROSERVICES EDITION
+  Complete Tech PRD + Design PRD
+  For: Keerthi Kumar V
+  Architecture: Microservices
+  DevOps: AWS
+  Goal: JP Morgan / Tier-1 Fintech Job
+====================================================
+
+NOTE: This file replaces the Tech PRD (Part 2) and Design PRD
+(Part 3) from your original FraudGuard PRD. Part 1 (Product PRD)
+and Part 4 (Day to Day Tasks) remain the same. Keep both files.
+
+WHY MICROSERVICES FOR JP MORGAN:
+JP Morgan runs one of the world's largest microservices
+architectures. Every team owns a separate service. If you can
+say "I built and deployed a microservices system on AWS with
+an API Gateway, message queue, and containerized services" —
+you immediately stand out from 95% of fresher candidates.
+
+
+====================================================
+PART 2 — TECH PRD (MICROSERVICES EDITION)
+====================================================
+
+
+----------------------------------------------------
+2.1 MICROSERVICES ARCHITECTURE OVERVIEW
+----------------------------------------------------
+
+FraudGuard is split into 5 independent microservices.
+Each service has its own codebase, its own database,
+and is deployed in its own Docker container on AWS.
+
+Services:
+  1. API Gateway              (entry point for all requests)
+  2. Auth Service             (login, register, JWT)
+  3. Transaction Service      (CRUD for transactions)
+  4. AI Scoring Service       (Gemini AI fraud scoring)
+  5. Notification Service     (alerts, audit log)
+
+Communication between services:
+  Sync  (HTTP) : Frontend → API Gateway → Auth/Transaction Service
+  Async (Queue): Transaction Service → SQS → AI Scoring Service
+                 AI Scoring Service → SQS → Notification Service
+
+This means:
+  - When a transaction is created, Transaction Service puts a
+    message on an AWS SQS queue
+  - AI Scoring Service picks it up, scores it, updates the DB
+  - Notification Service picks up the score result and logs it
+  - Nothing blocks — everything is asynchronous and fast
+
+
+----------------------------------------------------
+2.2 SYSTEM ARCHITECTURE DIAGRAM
+----------------------------------------------------
+
+CLIENT (React.js on AWS S3 + CloudFront)
+  |
+  | HTTPS
+  v
+AWS API GATEWAY (Kong or AWS API GW)
+  |
+  |--- /auth/*        → AUTH SERVICE (ECS Container)
+  |--- /transactions/* → TRANSACTION SERVICE (ECS Container)
+  |--- /admin/*       → TRANSACTION SERVICE (ECS Container)
+  |--- /audit/*       → NOTIFICATION SERVICE (ECS Container)
+  |
+  AUTH SERVICE          TRANSACTION SERVICE
+  |  MongoDB Atlas      |  MongoDB Atlas
+  |  (users DB)         |  (transactions DB)
+                        |
+                        | Publishes message to AWS SQS
+                        v
+                   AWS SQS QUEUE
+                   (transaction-scoring-queue)
+                        |
+                        v
+                   AI SCORING SERVICE (ECS Container)
+                   |  Calls Gemini AI API
+                   |  Updates transaction in DB
+                   |  Publishes result to SQS
+                        |
+                        v
+                   AWS SQS QUEUE
+                   (notification-queue)
+                        |
+                        v
+                   NOTIFICATION SERVICE (ECS Container)
+                   |  Writes to Audit Log DB
+                   |  Sends alert if critical fraud
+
+
+----------------------------------------------------
+2.3 FULL TECH STACK — ALL 5 SERVICES
+----------------------------------------------------
+
+FRONTEND
+  Framework       : React.js 18
+  Routing         : React Router v6
+  State Mgmt      : Redux Toolkit
+  UI Library      : Tailwind CSS
+  Charts          : Recharts
+  Icons           : Lucide React
+  HTTP Client     : Axios
+  Notifications   : React Hot Toast
+  Table           : TanStack Table v8
+  Gauge Chart     : React Gauge Chart
+  Hosting         : AWS S3 + CloudFront (CDN)
+
+SERVICE 1 — API GATEWAY
+  Technology      : AWS API Gateway (managed service)
+  Purpose         : Routes all requests to correct microservice
+  Features        :
+    - Rate limiting (100 requests/minute per IP)
+    - CORS handling
+    - JWT token validation (before forwarding)
+    - Request logging to AWS CloudWatch
+  No code to write — configured via AWS Console
+
+SERVICE 2 — AUTH SERVICE
+  Runtime         : Node.js 20
+  Framework       : Express.js 4
+  Auth            : JWT (jsonwebtoken) + bcryptjs
+  Validation      : Joi
+  Database        : MongoDB Atlas (separate DB: fraudguard-auth)
+  Port            : 3001
+  Containerized   : Docker
+  Hosted          : AWS ECS (Elastic Container Service)
+
+SERVICE 3 — TRANSACTION SERVICE
+  Runtime         : Node.js 20
+  Framework       : Express.js 4
+  Database        : MongoDB Atlas (separate DB: fraudguard-transactions)
+  Message Queue   : AWS SQS (publishes scoring requests)
+  AWS SDK         : @aws-sdk/client-sqs
+  Port            : 3002
+  Containerized   : Docker
+  Hosted          : AWS ECS
+
+SERVICE 4 — AI SCORING SERVICE
+  Runtime         : Node.js 20
+  Framework       : Express.js (minimal, mostly a queue worker)
+  AI              : Google Gemini API (gemini-1.5-flash) — FREE
+  Message Queue   : AWS SQS (consumes from transaction queue)
+                    AWS SQS (publishes to notification queue)
+  AWS SDK         : @aws-sdk/client-sqs
+  Database        : Connects to fraudguard-transactions DB to update scores
+  Port            : 3003
+  Containerized   : Docker
+  Hosted          : AWS ECS
+
+SERVICE 5 — NOTIFICATION SERVICE
+  Runtime         : Node.js 20
+  Framework       : Express.js (minimal, queue worker)
+  Database        : MongoDB Atlas (separate DB: fraudguard-audit)
+  Message Queue   : AWS SQS (consumes from notification queue)
+  AWS SDK         : @aws-sdk/client-sqs
+  Port            : 3004
+  Containerized   : Docker
+  Hosted          : AWS ECS
+
+SHARED INFRASTRUCTURE
+  Container Mgmt  : Docker + Docker Compose (local dev)
+  Cloud           : AWS (all services)
+  Container Cloud : AWS ECS (Elastic Container Service)
+  Image Registry  : AWS ECR (Elastic Container Registry)
+  Message Queue   : AWS SQS (Simple Queue Service)
+  CDN             : AWS CloudFront
+  Static Hosting  : AWS S3
+  Secrets         : AWS Secrets Manager
+  Monitoring      : AWS CloudWatch
+  Load Balancer   : AWS Application Load Balancer (ALB)
+  DNS             : AWS Route 53 (optional)
+  CI/CD           : GitHub Actions
+  Version Control : GitHub
+
+
+----------------------------------------------------
+2.4 FOLDER STRUCTURE (MONOREPO)
+----------------------------------------------------
+
+fraudguard/
+├── client/                        (React Frontend)
+│   ├── public/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── common/
+│   │   │   │   ├── Navbar.jsx
+│   │   │   │   ├── Sidebar.jsx
+│   │   │   │   ├── RiskBadge.jsx
+│   │   │   │   ├── LoadingSkeleton.jsx
+│   │   │   │   └── ProtectedRoute.jsx
+│   │   │   ├── dashboard/
+│   │   │   │   ├── StatsCard.jsx
+│   │   │   │   ├── FraudLineChart.jsx
+│   │   │   │   ├── CategoryPieChart.jsx
+│   │   │   │   └── HourlyBarChart.jsx
+│   │   │   └── transactions/
+│   │   │       ├── TransactionTable.jsx
+│   │   │       ├── FilterBar.jsx
+│   │   │       └── RiskGauge.jsx
+│   │   ├── pages/
+│   │   │   ├── Login.jsx
+│   │   │   ├── Dashboard.jsx
+│   │   │   ├── TransactionFeed.jsx
+│   │   │   ├── ReviewQueue.jsx
+│   │   │   ├── TransactionDetail.jsx
+│   │   │   ├── AuditLog.jsx
+│   │   │   └── AdminPanel.jsx
+│   │   ├── store/
+│   │   │   ├── store.js
+│   │   │   ├── authSlice.js
+│   │   │   └── transactionSlice.js
+│   │   ├── services/
+│   │   │   ├── api.js             (Axios with API Gateway base URL)
+│   │   │   ├── authService.js
+│   │   │   └── transactionService.js
+│   │   └── utils/
+│   ├── Dockerfile
+│   └── package.json
+│
+├── services/
+│   ├── auth-service/              (Service 2)
+│   │   ├── src/
+│   │   │   ├── config/
+│   │   │   │   └── db.js
+│   │   │   ├── controllers/
+│   │   │   │   └── authController.js
+│   │   │   ├── middleware/
+│   │   │   │   ├── authMiddleware.js
+│   │   │   │   └── errorHandler.js
+│   │   │   ├── models/
+│   │   │   │   └── User.js
+│   │   │   ├── routes/
+│   │   │   │   └── authRoutes.js
+│   │   │   └── server.js
+│   │   ├── Dockerfile
+│   │   ├── .env.example
+│   │   └── package.json
+│   │
+│   ├── transaction-service/       (Service 3)
+│   │   ├── src/
+│   │   │   ├── config/
+│   │   │   │   ├── db.js
+│   │   │   │   └── sqsClient.js
+│   │   │   ├── controllers/
+│   │   │   │   └── transactionController.js
+│   │   │   ├── middleware/
+│   │   │   ├── models/
+│   │   │   │   └── Transaction.js
+│   │   │   ├── routes/
+│   │   │   │   └── transactionRoutes.js
+│   │   │   ├── services/
+│   │   │   │   └── queueService.js  (sends to SQS)
+│   │   │   └── server.js
+│   │   ├── Dockerfile
+│   │   ├── .env.example
+│   │   └── package.json
+│   │
+│   ├── ai-scoring-service/        (Service 4)
+│   │   ├── src/
+│   │   │   ├── config/
+│   │   │   │   ├── db.js
+│   │   │   │   ├── sqsClient.js
+│   │   │   │   └── geminiClient.js
+│   │   │   ├── workers/
+│   │   │   │   └── scoringWorker.js  (polls SQS queue)
+│   │   │   ├── services/
+│   │   │   │   └── aiScoringService.js
+│   │   │   └── server.js
+│   │   ├── Dockerfile
+│   │   ├── .env.example
+│   │   └── package.json
+│   │
+│   └── notification-service/      (Service 5)
+│       ├── src/
+│       │   ├── config/
+│       │   │   ├── db.js
+│       │   │   └── sqsClient.js
+│       │   ├── workers/
+│       │   │   └── notificationWorker.js
+│       │   ├── models/
+│       │   │   └── AuditLog.js
+│       │   ├── controllers/
+│       │   │   └── auditController.js
+│       │   ├── routes/
+│       │   │   └── auditRoutes.js
+│       │   └── server.js
+│       ├── Dockerfile
+│       ├── .env.example
+│       └── package.json
+│
+├── infrastructure/
+│   ├── docker-compose.yml         (local dev — runs all 4 services)
+│   └── aws/
+│       ├── ecs-task-auth.json
+│       ├── ecs-task-transaction.json
+│       ├── ecs-task-scoring.json
+│       └── ecs-task-notification.json
+│
+├── .github/
+│   └── workflows/
+│       ├── deploy-auth.yml        (CI/CD for auth service)
+│       ├── deploy-transaction.yml
+│       ├── deploy-scoring.yml
+│       └── deploy-notification.yml
+│
+└── README.md
+
+
+----------------------------------------------------
+2.5 DATABASE DESIGN (ONE MONGODB — THREE COLLECTIONS)
+----------------------------------------------------
+
+You only need ONE MongoDB Atlas free database.
+One connection string. One free cluster.
+Three collections inside it — one per service.
+
+Each service only touches its own collection.
+They never read each other's collection directly.
+Communication happens only via SQS messages.
+
+DATABASE NAME: fraudguard  (single database on Atlas)
+
+  Collection 1: users        (used by Auth Service only)
+  Collection 2: transactions (used by Transaction + Scoring Service)
+  Collection 3: auditlogs    (used by Notification Service only)
+
+All 4 services use the SAME MongoDB URI in their .env:
+  MONGO_URI=mongodb+srv://youruser:yourpass@cluster.mongodb.net/fraudguard
+
+Each service just uses mongoose.model() for its own collection only.
+Auth Service never imports Transaction model. Transaction Service
+never imports AuditLog model. This is called logical separation.
+
+If a JP Morgan interviewer asks why one DB instead of three:
+"I used a single MongoDB database with separate collections per
+service to reduce infrastructure cost during development, while
+keeping each service logically independent. In production I would
+move each collection to its own database cluster for true isolation
+and independent scaling."
+
+COLLECTION SCHEMAS:
+
+COLLECTION 1 — users (Auth Service)
+  {
+    _id          : ObjectId,
+    name         : String (required),
+    email        : String (unique, required),
+    password     : String (bcrypt hashed),
+    role         : String (enum: analyst | admin),
+    isActive     : Boolean (default: true),
+    lastLogin    : Date,
+    createdAt    : Date,
+    updatedAt    : Date
+  }
+
+COLLECTION 2 — transactions (Transaction + Scoring Service)
+  {
+    _id              : ObjectId,
+    transactionId    : String (unique, required),
+    amount           : Number (required),
+    currency         : String (default: INR),
+    merchantName     : String (required),
+    merchantCategory : String (required),
+    cardLastFour     : String,
+    cardType         : String (enum: credit | debit),
+    location         : { city: String, country: String, ipAddress: String },
+    userId           : String,
+    timestamp        : Date (required),
+    status           : String (enum: pending|clean|suspicious|fraudulent),
+    riskScore        : Number (0-100, default: 0),
+    riskLevel        : String (enum: low|medium|high|critical),
+    aiReasons        : [String],
+    aiRecommendation : String (enum: approve|review|block),
+    reviewedBy       : String (analyst userId as string),
+    reviewedByName   : String,
+    reviewedAt       : Date,
+    reviewNote       : String,
+    scoringStatus    : String (enum: queued|scoring|scored, default: queued),
+    createdAt        : Date
+  }
+  Index: { transactionId: 1, timestamp: -1, status: 1, riskScore: -1 }
+
+COLLECTION 3 — auditlogs (Notification Service)
+  {
+    _id            : ObjectId,
+    transactionId  : String (required),
+    analystId      : String,
+    analystName    : String,
+    action         : String (enum: approved|rejected|escalated|auto-flagged),
+    note           : String,
+    previousStatus : String,
+    newStatus      : String,
+    riskScore      : Number,
+    timestamp      : Date (default: now),
+    source         : String (enum: analyst | system)
+  }
+
+
+----------------------------------------------------
+2.6 SQS MESSAGE FORMATS
+----------------------------------------------------
+
+QUEUE 1: transaction-scoring-queue
+  Message sent by Transaction Service when new transaction created:
+  {
+    "messageType": "SCORE_TRANSACTION",
+    "transactionId": "TXN-29821",
+    "amount": 45200,
+    "merchantName": "Amazon",
+    "merchantCategory": "electronics",
+    "location": { "city": "Mumbai", "country": "India" },
+    "timestamp": "2025-01-02T02:34:00Z",
+    "cardType": "credit",
+    "cardLastFour": "4821"
+  }
+
+QUEUE 2: notification-queue
+  Message sent by AI Scoring Service after scoring:
+  {
+    "messageType": "TRANSACTION_SCORED",
+    "transactionId": "TXN-29821",
+    "riskScore": 87,
+    "riskLevel": "high",
+    "newStatus": "suspicious",
+    "aiReasons": ["Unusual 2AM timestamp", "High amount", "New location"],
+    "analystId": null,
+    "analystName": "system",
+    "action": "auto-flagged",
+    "previousStatus": "pending"
+  }
+
+
+----------------------------------------------------
+2.7 API ENDPOINTS PER SERVICE
+----------------------------------------------------
+
+AUTH SERVICE (port 3001)
+  POST  /auth/register      Register new user
+  POST  /auth/login         Login, returns JWT
+  GET   /auth/me            Get current user (protected)
+  POST  /auth/verify        Verify JWT token (called by API Gateway)
+
+TRANSACTION SERVICE (port 3002)
+  GET   /transactions               Get all (with filters)
+  GET   /transactions/queue         Get review queue
+  GET   /transactions/stats         Get dashboard stats
+  GET   /transactions/trends        Get 7-day trend data
+  GET   /transactions/categories    Get fraud by category
+  GET   /transactions/:id           Get one transaction
+  POST  /transactions               Create transaction
+  PATCH /transactions/:id           Update status (review action)
+  GET   /transactions/export        Export CSV
+
+NOTIFICATION SERVICE (port 3004)
+  GET   /audit              Get all audit logs (admin only)
+  GET   /audit/:txnId       Get audit log for one transaction
+
+AI SCORING SERVICE (port 3003)
+  GET   /scoring/health     Health check only
+  (No public endpoints — only listens to SQS queue)
+
+
+----------------------------------------------------
+2.8 DOCKER SETUP
+----------------------------------------------------
+
+DOCKERFILE (same pattern for all 4 services):
+
+  FROM node:20-alpine
+  WORKDIR /app
+  COPY package*.json ./
+  RUN npm ci --only=production
+  COPY src/ ./src/
+  EXPOSE 3001
+  CMD ["node", "src/server.js"]
+
+DOCKER COMPOSE (for local development):
+  Runs all 4 services + LocalStack (fake AWS SQS locally)
+
+  docker-compose.yml:
+  version: '3.8'
+  services:
+    auth-service:
+      build: ./services/auth-service
+      ports: ["3001:3001"]
+      env_file: ./services/auth-service/.env
+
+    transaction-service:
+      build: ./services/transaction-service
+      ports: ["3002:3002"]
+      env_file: ./services/transaction-service/.env
+
+    ai-scoring-service:
+      build: ./services/ai-scoring-service
+      ports: ["3003:3003"]
+      env_file: ./services/ai-scoring-service/.env
+
+    notification-service:
+      build: ./services/notification-service
+      ports: ["3004:3004"]
+      env_file: ./services/notification-service/.env
+
+    localstack:
+      image: localstack/localstack
+      ports: ["4566:4566"]
+      environment:
+        - SERVICES=sqs
+      (LocalStack fakes AWS SQS locally so you don't pay during dev)
+
+LOCAL DEVELOPMENT COMMAND:
+  docker-compose up --build
+
+
+----------------------------------------------------
+2.9 AWS DEPLOYMENT ARCHITECTURE
+----------------------------------------------------
+
+STEP BY STEP — WHAT GOES WHERE ON AWS
+
+STEP 1: CONTAINER IMAGES → AWS ECR
+  Each service gets its own ECR repository:
+    fraudguard/auth-service
+    fraudguard/transaction-service
+    fraudguard/ai-scoring-service
+    fraudguard/notification-service
+
+  You push Docker images to ECR using GitHub Actions.
+
+STEP 2: SERVICES RUN ON → AWS ECS (Fargate)
+  ECS Fargate = serverless containers (no EC2 to manage)
+  Each service = one ECS Task Definition + one ECS Service
+  ECS Service keeps 1 container running at all times
+  If container crashes, ECS automatically restarts it
+
+STEP 3: REQUEST ROUTING → AWS Application Load Balancer
+  One ALB with path-based routing:
+    /auth/*     → forwards to Auth Service ECS tasks
+    /transactions/* → forwards to Transaction Service ECS tasks
+    /audit/*    → forwards to Notification Service ECS tasks
+
+STEP 4: MESSAGE QUEUE → AWS SQS
+  Two SQS queues in your AWS account:
+    fraudguard-transaction-scoring-queue
+    fraudguard-notification-queue
+  AI Scoring Service polls queue every 5 seconds
+  Notification Service polls queue every 5 seconds
+
+STEP 5: SECRETS → AWS Secrets Manager
+  Store sensitive values here (not in .env files on AWS):
+    /fraudguard/mongo-uri
+    /fraudguard/jwt-secret
+    /fraudguard/claude-api-key
+    /fraudguard/aws-sqs-region
+  ECS tasks read secrets from Secrets Manager at startup
+
+STEP 6: MONITORING → AWS CloudWatch
+  All ECS container logs automatically go to CloudWatch
+  Set up alerts for:
+    - Service crashes (container health check fails)
+    - Error rate above 5% in 5 minutes
+    - AI scoring queue depth above 100 (backlog alert)
+
+STEP 7: FRONTEND → AWS S3 + CloudFront
+  Build React app: npm run build
+  Upload /dist folder to S3 bucket
+  CloudFront CDN sits in front of S3
+  Users get the React app from nearest edge location
+  Custom domain via Route 53 (optional)
+
+STEP 8: CI/CD → GitHub Actions
+  Every push to main branch:
+    1. Run tests
+    2. Build Docker image
+    3. Push image to AWS ECR
+    4. Update ECS service with new image
+    5. ECS deploys new version with zero downtime
+
+AWS FREE TIER USAGE (what you can use for free):
+  ECS Fargate   : 750 hours/month free (first year)
+  SQS           : 1 million messages/month free (always free)
+  S3            : 5GB storage free (first year)
+  CloudFront    : 1TB data transfer free (first year)
+  CloudWatch    : 5GB log storage free (always free)
+  ECR           : 500MB storage free (first year)
+  Secrets Mgr   : $0.40 per secret per month (4 secrets = $1.60/month)
+
+
+----------------------------------------------------
+2.10 GITHUB ACTIONS CI/CD PIPELINE
+----------------------------------------------------
+
+File: .github/workflows/deploy-auth.yml
+
+name: Deploy Auth Service
+
+on:
+  push:
+    branches: [main]
+    paths: ['services/auth-service/**']
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build and push Docker image
+        run: |
+          docker build -t fraudguard/auth-service ./services/auth-service
+          docker tag fraudguard/auth-service:latest \
+            ${{ steps.login-ecr.outputs.registry }}/fraudguard/auth-service:latest
+          docker push \
+            ${{ steps.login-ecr.outputs.registry }}/fraudguard/auth-service:latest
+
+      - name: Deploy to ECS
+        run: |
+          aws ecs update-service \
+            --cluster fraudguard-cluster \
+            --service auth-service \
+            --force-new-deployment
+
+Copy this file for each of the 4 services.
+Change the path and service name for each one.
+
+
+----------------------------------------------------
+2.11 ENVIRONMENT VARIABLES PER SERVICE
+----------------------------------------------------
+
+NOTE: ALL 4 SERVICES USE THE SAME MONGO_URI.
+One MongoDB Atlas free cluster. One connection string.
+Each service only touches its own collection in code.
+
+AUTH SERVICE (.env):
+  PORT=3001
+  MONGO_URI=mongodb+srv://youruser:yourpass@cluster.mongodb.net/fraudguard
+  JWT_SECRET=fraudguard_secret_key_2025
+  NODE_ENV=development
+
+TRANSACTION SERVICE (.env):
+  PORT=3002
+  MONGO_URI=mongodb+srv://youruser:yourpass@cluster.mongodb.net/fraudguard
+  JWT_SECRET=fraudguard_secret_key_2025
+  AWS_REGION=ap-south-1
+  AWS_ACCESS_KEY_ID=your_key
+  AWS_SECRET_ACCESS_KEY=your_secret
+  SQS_SCORING_QUEUE_URL=https://sqs.ap-south-1.amazonaws.com/xxxx/transaction-scoring-queue
+  NODE_ENV=development
+
+AI SCORING SERVICE (.env):
+  PORT=3003
+  MONGO_URI=mongodb+srv://youruser:yourpass@cluster.mongodb.net/fraudguard
+  GEMINI_API_KEY=your_gemini_api_key_from_aistudio
+  AWS_REGION=ap-south-1
+  AWS_ACCESS_KEY_ID=your_key
+  AWS_SECRET_ACCESS_KEY=your_secret
+  SQS_SCORING_QUEUE_URL=https://sqs.ap-south-1.amazonaws.com/xxxx/transaction-scoring-queue
+  SQS_NOTIFICATION_QUEUE_URL=https://sqs.ap-south-1.amazonaws.com/xxxx/notification-queue
+  NODE_ENV=development
+
+NOTIFICATION SERVICE (.env):
+  PORT=3004
+  MONGO_URI=mongodb+srv://youruser:yourpass@cluster.mongodb.net/fraudguard
+  AWS_REGION=ap-south-1
+  AWS_ACCESS_KEY_ID=your_key
+  AWS_SECRET_ACCESS_KEY=your_secret
+  SQS_NOTIFICATION_QUEUE_URL=https://sqs.ap-south-1.amazonaws.com/xxxx/notification-queue
+  NODE_ENV=development
+
+
+----------------------------------------------------
+2.12 HOW TO EXPLAIN THIS IN JP MORGAN INTERVIEW
+----------------------------------------------------
+
+QUESTION: "Tell me about your architecture decisions."
+
+ANSWER:
+"I built FraudGuard as a microservices system on AWS. I split
+the application into 4 services — Auth, Transaction, AI Scoring,
+and Notification — each with its own MongoDB database and Docker
+container. Services communicate asynchronously through AWS SQS
+queues, which means creating a transaction is non-blocking — the
+AI scoring happens in the background without making the user wait.
+I deployed everything on AWS ECS Fargate with an Application Load
+Balancer routing traffic, and set up a GitHub Actions CI/CD
+pipeline that automatically builds Docker images, pushes them to
+ECR, and deploys to ECS on every push to main. This architecture
+mirrors how JP Morgan and other financial institutions structure
+their payment processing systems."
+
+QUESTION: "Why microservices instead of a monolith?"
+
+ANSWER:
+"Three reasons. First, each service can be scaled independently
+— if AI scoring becomes a bottleneck, I can scale just that
+container without touching the others. Second, a failure in
+the notification service does not bring down the entire system.
+Third, each service can be deployed independently — the auth
+team does not need to coordinate with the transaction team for
+deployments. These are exactly the reasons financial institutions
+use microservices for their payment systems."
+
+QUESTION: "Why SQS for communication?"
+
+ANSWER:
+"Because fraud scoring does not need to be synchronous. The
+transaction is saved immediately and the user gets a response
+right away. The AI scoring runs asynchronously in the background
+via SQS. This means if the AI Scoring Service is temporarily
+down, messages queue up and get processed when it comes back —
+no transactions are lost. This is called message durability and
+it is critical for financial systems."
+
+
+====================================================
+PART 3 — DESIGN PRD (MICROSERVICES EDITION)
+====================================================
+
+Note: The UI design is identical to the original PRD
+Design sections 3.1 through 3.8. Only the deployment
+target changes (S3 + CloudFront instead of Vercel).
+The full design spec is repeated here for completeness.
+
+
+----------------------------------------------------
+3.1 DESIGN PHILOSOPHY
+----------------------------------------------------
+
+Think: Bloomberg Terminal meets modern SaaS dashboard.
+Dark, professional, data-dense but clean.
+Every pixel should feel like enterprise banking software.
+No childish colors. No cartoon icons. This is serious software.
+
+Primary Vibe  : Dark mode, professional, trustworthy
+Color Feeling : Secure, urgent where needed, calm where safe
+
+
+----------------------------------------------------
+3.2 COLOR SYSTEM
+----------------------------------------------------
+
+BACKGROUNDS
+  Main Background     : #0F1117  (very dark navy black)
+  Card Background     : #1A1D27  (dark navy)
+  Sidebar Background  : #13151F  (darker than main)
+  Table Row Hover     : #1F2235  (slight highlight)
+  Modal Background    : #1A1D27
+
+BORDERS
+  Default Border      : #2A2D3E
+  Active Border       : #3B82F6  (blue when focused)
+
+TEXT
+  Primary Text        : #F1F5F9  (near white)
+  Secondary Text      : #94A3B8  (muted grey)
+  Disabled Text       : #475569
+  Link Text           : #60A5FA  (light blue)
+
+RISK COLORS
+  Low Risk            : #22C55E  (green)   — score 0-40
+  Medium Risk         : #F59E0B  (amber)   — score 41-70
+  High Risk           : #EF4444  (red)     — score 71-90
+  Critical Risk       : #DC2626  (dark red + pulse) — score 91-100
+
+  Low Background      : #052E16
+  Medium Background   : #451A03
+  High Background     : #450A0A
+  Critical Background : #3F0000
+
+ACTION COLORS
+  Approve Button      : #16A34A  (green)
+  Reject Button       : #DC2626  (red)
+  Escalate Button     : #D97706  (amber)
+  Primary Action      : #3B82F6  (blue)
+
+CHART COLORS
+  Color 1             : #3B82F6  (blue)
+  Color 2             : #EF4444  (red)
+  Color 3             : #22C55E  (green)
+  Color 4             : #F59E0B  (amber)
+  Color 5             : #8B5CF6  (purple)
+
+
+----------------------------------------------------
+3.3 TYPOGRAPHY
+----------------------------------------------------
+
+Font Family         : Inter (Google Fonts)
+Monospace Font      : JetBrains Mono (transaction IDs, amounts)
+
+SIZES:
+  Page Title        : 24px, weight 600
+  Section Title     : 18px, weight 600
+  Card Title        : 14px, weight 500
+  Body Text         : 14px, weight 400
+  Small / Label     : 12px, weight 400
+  Tiny / Hint       : 11px, weight 400
+
+Always use JetBrains Mono for:
+  - Transaction IDs (TXN-29821)
+  - Currency amounts (₹45,200)
+  - Risk score numbers (87)
+  - Card numbers (**** 4821)
+
+
+----------------------------------------------------
+3.4 LAYOUT STRUCTURE
+----------------------------------------------------
+
+OVERALL LAYOUT:
+┌─────────────────────────────────────────────────┐
+│  SIDEBAR (240px fixed left)  │  MAIN CONTENT    │
+│                              │  ┌─────────────┐ │
+│  [Shield] FraudGuard         │  │  TOP NAVBAR │ │
+│                              │  └─────────────┘ │
+│  Navigation:                 │                  │
+│  > Dashboard                 │  PAGE CONTENT    │
+│  > Transaction Feed          │  (scrollable)    │
+│  > Review Queue [red badge]  │                  │
+│  > Audit Log                 │                  │
+│  > Admin Panel               │                  │
+│                              │                  │
+│  ─────────────────────       │                  │
+│  [Avatar] Keerthi Kumar      │                  │
+│  [Logout button]             │                  │
+└─────────────────────────────────────────────────┘
+
+TOP NAVBAR:
+┌────────────────────────────────────────────────┐
+│  [Page Title]       [🔔 3]   [K] Keerthi ▼    │
+└────────────────────────────────────────────────┘
+
+STATS CARDS ROW:
+┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+│Total Txns│ │ Flagged  │ │Confirmed │ │ Saved ₹  │
+│  2,847   │ │  [amber] │ │  [red]   │ │  [green] │
+│ +12% ↑   │ │ 143      │ │ 28 today │ │ ₹4.2L    │
+└──────────┘ └──────────┘ └──────────┘ └──────────┘
+
+
+----------------------------------------------------
+3.5 COMPONENT DESIGNS
+----------------------------------------------------
+
+TRANSACTION TABLE ROW:
+  [risk color left border] | TXN-ID | ₹Amount | Merchant
+  | Category | City | Time | Score Bar | Status Badge | [eye icon]
+
+  Risk Score visual:
+    87  [████████░░]  HIGH
+    Score number (JetBrains Mono bold, red)
+    Mini progress bar (filled based on score, colored)
+    Level text (red for HIGH)
+
+  Status Badge (pill shape):
+    ● CLEAN       — dark green bg, green text, green dot
+    ● SUSPICIOUS  — dark amber bg, amber text, amber dot
+    ● FRAUDULENT  — dark red bg, red text, red dot, pulse animation
+    ● PENDING     — dark grey bg, grey text, grey dot
+
+TRANSACTION DETAIL PAGE:
+┌──────────────────────┬──────────────────────────┐
+│  TRANSACTION INFO    │   AI RISK ANALYSIS       │
+│  ─────────────────   │   ─────────────────────  │
+│  ID: TXN-29821       │   [Semicircle Gauge]     │
+│  ₹45,200             │   Score: 87 / 100        │
+│  Amazon Electronics  │   ● HIGH RISK            │
+│  Mumbai, India       │                          │
+│  02 Jan 2:34 AM      │   Why flagged:           │
+│  Credit **** 4821    │   ⚠ Unusual 2AM time     │
+│  ● SUSPICIOUS        │   ⚠ Amount 3x average   │
+│                      │   ⚠ New merchant city   │
+│                      │   → Recommendation: BLOCK│
+├──────────────────────┴──────────────────────────┤
+│  YOUR DECISION                                   │
+│  ┌──────────────────────────────────────────┐   │
+│  │ Add a note (required, min 10 chars)...   │   │
+│  └──────────────────────────────────────────┘   │
+│  [✓ APPROVE]    [✗ REJECT]    [↑ ESCALATE]      │
+└──────────────────────────────────────────────────┘
+
+RISK GAUGE CHART:
+  Semicircle (like a speedometer)
+  Left = green (safe), right = red (danger)
+  Needle points to current score position
+  Large score number centered below arc
+  Risk level text below number
+
+SIDEBAR ACTIVE STATE:
+  Active item has left 3px blue border + slightly brighter bg
+  Inactive items: no border, normal bg, lighter icon color
+  Hover: smooth 150ms background transition
+  Review Queue badge: red pill with white number
+
+AUDIT LOG TABLE:
+  Timestamp | Analyst | Transaction ID | Action | Note
+  Approved  → green text + ✓ icon
+  Rejected  → red text + ✗ icon
+  Escalated → amber text + ↑ icon
+  Auto-flagged → blue text + ⚡ icon
+
+
+----------------------------------------------------
+3.6 ANIMATIONS AND INTERACTIONS
+----------------------------------------------------
+
+CRITICAL RISK ROW (score 91-100):
+  Box shadow: 0 0 8px rgba(220, 38, 38, 0.4)
+  Animation: pulse glow 2s infinite ease-in-out
+  This draws eye without being distracting
+
+PAGE TRANSITIONS:
+  Fade in on route change
+  CSS: opacity 0→1, 200ms, ease-in
+  Apply to main content area only, not sidebar
+
+LOADING STATES:
+  Skeleton loader: grey animated shimmer bars
+  Use animate-pulse from Tailwind
+  Never show blank white screen
+  Show skeleton immediately, replace when data arrives
+
+BUTTON STATES:
+  Default   : base color
+  Hover     : 10% lighter shade, 150ms transition
+  Active    : scale(0.97), 100ms
+  Loading   : spinner icon replaces text, disabled
+  Disabled  : opacity-50, cursor-not-allowed
+
+TOAST NOTIFICATIONS:
+  Position  : top-right, 16px from corner
+  Duration  : 3 seconds auto dismiss
+  Success   : green left border (approve actions)
+  Error     : red left border (API failures)
+  Info      : blue left border (new transaction flagged)
+  Warning   : amber left border (queue growing)
+
+TABLE ROW HOVER:
+  Background: #1F2235 (subtle change from #1A1D27)
+  Transition: 100ms ease
+  Cursor    : pointer
+
+
+----------------------------------------------------
+3.7 MOBILE RESPONSIVENESS
+----------------------------------------------------
+
+BREAKPOINTS (Tailwind classes):
+  sm  : 640px   (large phone landscape)
+  md  : 768px   (tablet)
+  lg  : 1024px  (desktop)
+  xl  : 1280px  (large desktop)
+
+MOBILE (below 768px):
+  Sidebar    : Hidden. Hamburger button in navbar opens as overlay
+  Stats Cards: 2 column grid instead of 4
+  Table      : Show only Merchant, Amount, Status badge, Risk score
+  Detail Page: Stacks to single column
+               Gauge chart above transaction info
+               Action buttons full width stacked vertically
+  Charts     : Horizontally scrollable wrapper
+
+TABLET (768px - 1024px):
+  Sidebar    : Show collapsed (icons only, no labels)
+  Stats Cards: 2x2 grid or 4x1 if space allows
+  Table      : Show all columns except Location
+
+HAMBURGER MENU:
+  Three horizontal lines icon in top-left of navbar
+  Click opens sidebar as fixed overlay with dark backdrop
+  Click outside or X button closes it
+  Smooth slide-in animation from left (300ms)
+
+
+----------------------------------------------------
+3.8 PAGE BY PAGE DESIGN NOTES
+----------------------------------------------------
+
+LOGIN PAGE:
+  Full dark screen (#0F1117 background)
+  Very subtle grid dot pattern in background (CSS only)
+  Centered card (max-width 400px): background #1A1D27
+  Top of card: shield icon (blue) + "FraudGuard" text
+  Below: "Secure. Real-time. Intelligent." in grey
+  Form fields: dark input with light border, white text
+  Login button: full width, blue, slightly rounded
+  Loading state: spinner inside button during API call
+  Error: red text below form, not a popup
+
+DASHBOARD PAGE:
+  4 stats cards in a row at top
+  Full-width line chart below: "Fraud Trend — Last 7 Days"
+  Two-column row at bottom:
+    Left 50%: Category Pie Chart — "Fraud by Category"
+    Right 50%: Hourly Bar Chart — "Fraud by Hour of Day"
+  All chart backgrounds: transparent (uses card background)
+  Chart grid lines: #2A2D3E
+  Chart tooltip: dark background, white text, colored value
+
+TRANSACTION FEED:
+  FilterBar card at top (collapsible on mobile)
+  "Generate Mock Transaction" button: top right, blue
+  Table below: full width, dark rows, alternating not needed
+  Pagination bar at bottom:
+    "Showing 1-20 of 2,847 transactions"
+    Prev / Next / Page numbers
+  Table is sortable by clicking column headers
+  Sorted column shows up/down arrow
+
+REVIEW QUEUE:
+  Header: "Review Queue" + amber badge "143 pending"
+  Subtext: "Sorted by risk score — highest risk first"
+  Same table as feed but with inline action buttons
+  Each row: [...table columns...] [Approve] [Reject]
+  Clicking Approve/Reject opens small centered modal:
+    "Confirm: Approve TXN-29821?"
+    Note textarea (required)
+    [Cancel] [Confirm] buttons
+  Empty state (all reviewed):
+    Large checkmark icon
+    "All caught up! No transactions need review."
+    Subtext: "Great work by your team today."
+
+AUDIT LOG PAGE:
+  Admin only. Analysts see redirect to dashboard.
+  Filter row at top: analyst filter, action filter, date range
+  Table: chronological, newest first
+  Each action in different color (as defined in 3.5)
+  Export button: top right
+  Clicking a row expands to show full note text
+
+ADMIN PANEL:
+  User management table:
+    Name | Email | Role | Status | Last Login | Actions
+  Actions: Activate / Deactivate toggle
+  Add new user button (opens modal form)
+  System health section:
+    Shows each microservice status: green dot = healthy
+    Auth Service ● Online
+    Transaction Service ● Online
+    AI Scoring Service ● Online
+    Notification Service ● Online
+  This health check section is what makes it look enterprise-grade
+
+
+----------------------------------------------------
+3.9 AWS-SPECIFIC FRONTEND DEPLOYMENT
+----------------------------------------------------
+
+LOCAL DEVELOPMENT:
+  npm run dev
+  API base URL: http://localhost:3000 (API Gateway local port)
+  All 4 backend services run via docker-compose
+
+PRODUCTION BUILD:
+  npm run build
+  Output: /dist folder
+
+DEPLOY TO AWS S3:
+  aws s3 sync dist/ s3://fraudguard-frontend --delete
+
+CLOUDFRONT INVALIDATION (after each deploy):
+  aws cloudfront create-invalidation \
+    --distribution-id YOUR_DIST_ID \
+    --paths "/*"
+  This clears CDN cache so users get new version immediately
+
+ENVIRONMENT VARIABLES FOR PRODUCTION:
+  VITE_API_URL=https://your-alb-url.ap-south-1.amazonaws.com
+  (This points to AWS Application Load Balancer, not Render)
+
+GITHUB ACTIONS FOR FRONTEND:
+  On push to main:
+    1. npm run build
+    2. Upload dist/ to S3
+    3. Invalidate CloudFront cache
+
+
+----------------------------------------------------
+3.10 README FOR MICROSERVICES PROJECT
+----------------------------------------------------
+
+Your README must include:
+
+  # FraudGuard — AI-Powered Fraud Detection (Microservices)
+
+  > Enterprise-grade real-time fraud detection system built with
+  > microservices architecture on AWS.
+
+  ## Architecture
+  (Add a simple architecture diagram image here)
+
+  ## Services
+  | Service | Tech | Port | Purpose |
+  |---|---|---|---|
+  | Auth | Node/Express | 3001 | JWT authentication |
+  | Transaction | Node/Express | 3002 | Transaction CRUD + SQS |
+  | AI Scoring | Node/Express | 3003 | Gemini AI scoring worker |
+  | Notification | Node/Express | 3004 | Audit log writer |
+
+  ## Tech Stack
+  MERN + AWS (ECS, SQS, S3, CloudFront, ECR, ALB, CloudWatch)
+  Docker, GitHub Actions CI/CD, Gemini AI API
+
+  ## AWS Architecture
+  - Frontend: S3 + CloudFront
+  - Services: ECS Fargate (serverless containers)
+  - Routing: Application Load Balancer
+  - Queues: SQS (async inter-service communication)
+  - Images: ECR
+  - Secrets: AWS Secrets Manager
+  - Logs: CloudWatch
+
+  ## Local Setup
+  Prerequisites: Docker Desktop, Node.js 20, AWS CLI
+  1. Clone repo
+  2. Copy .env.example to .env in each service
+  3. Run: docker-compose up --build
+  4. Frontend: cd client && npm run dev
+
+  ## CI/CD
+  GitHub Actions deploys each service independently
+  when code changes in that service's folder.
+
+  ## Live Demo
+  [your CloudFront URL]
+
+
+====================================================
+WHAT TO SAY ON YOUR RESUME
+====================================================
+
+PROJECT LINE:
+"FraudGuard — Microservices Fraud Detection System"
+Stack: React.js, Node.js, MongoDB, Docker, AWS ECS/SQS/S3,
+       Gemini AI API, GitHub Actions
+
+BULLET POINTS:
+• Architected 4-service microservices system (Auth, Transaction,
+  AI Scoring, Notification) with async communication via AWS SQS,
+  processing AI fraud scores without blocking transaction creation
+
+• Containerized all services with Docker and deployed to AWS ECS
+  Fargate with Application Load Balancer routing, achieving
+  independent deployability per service
+
+• Built GitHub Actions CI/CD pipeline that automatically builds
+  Docker images, pushes to AWS ECR, and deploys to ECS on
+  every commit to main branch
+
+• Integrated Gemini AI API as async scoring worker that classifies
+  transactions as low/medium/high/critical risk with reasoning,
+  deployed on AWS with CloudWatch monitoring
+
+
+====================================================
+PART 4 — GEMINI AI SCORING CODE (EXACT CODE)
+====================================================
+
+This replaces the Claude AI code from the original PRD.
+Copy this exactly into ai-scoring-service.
+
+----------------------------------------------------
+4.1 INSTALL GEMINI PACKAGE
+----------------------------------------------------
+
+Inside /services/ai-scoring-service:
+  npm install @google/generative-ai
+
+Get your FREE API key at:
+  https://aistudio.google.com/app/apikey
+  No credit card needed. Gemini 1.5 Flash is free.
+
+
+----------------------------------------------------
+4.2 GEMINI CLIENT SETUP
+----------------------------------------------------
+
+File: /services/ai-scoring-service/src/config/geminiClient.js
+
+  const { GoogleGenerativeAI } = require('@google/generative-ai')
+
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+
+  module.exports = model
+
+
+----------------------------------------------------
+4.3 AI SCORING SERVICE — FULL CODE
+----------------------------------------------------
+
+File: /services/ai-scoring-service/src/services/aiScoringService.js
+
+  const model = require('../config/geminiClient')
+
+  async function scoreTransaction(transaction) {
+    const prompt = `
+      You are a bank fraud detection AI system.
+      Analyze this transaction and return ONLY a JSON object.
+      No explanation. No markdown. No code fences. Just raw JSON.
+
+      Transaction:
+      - ID: ${transaction.transactionId}
+      - Amount: ${transaction.amount} INR
+      - Merchant: ${transaction.merchantName}
+      - Category: ${transaction.merchantCategory}
+      - Location: ${transaction.location.city}, ${transaction.location.country}
+      - Time: ${transaction.timestamp}
+      - Card Type: ${transaction.cardType}
+      - Card Last 4: ${transaction.cardLastFour}
+
+      Return exactly this JSON:
+      {
+        "riskScore": <number 0-100>,
+        "riskLevel": <"low" or "medium" or "high" or "critical">,
+        "reasons": ["reason1", "reason2", "reason3"],
+        "recommendation": <"approve" or "review" or "block">
+      }
+
+      Scoring rules:
+      0-40   = low risk, normal transaction
+      41-70  = medium risk, some flags, needs review
+      71-90  = high risk, likely fraudulent
+      91-100 = critical, block immediately
+
+      Flag these patterns:
+      - Late night time (11PM - 5AM) = suspicious
+      - Amount above 50000 INR = suspicious
+      - Electronics or jewelry category = higher risk
+      - Unusual location = suspicious
+    `
+
+    try {
+      const result = await model.generateContent(prompt)
+      const text = result.response.text().trim()
+
+      // Remove any markdown fences if Gemini adds them
+      const clean = text.replace(/```json|```/g, '').trim()
+      const parsed = JSON.parse(clean)
+
+      return {
+        riskScore: parsed.riskScore,
+        riskLevel: parsed.riskLevel,
+        aiReasons: parsed.reasons,
+        aiRecommendation: parsed.recommendation
+      }
+    } catch (err) {
+      console.error('Gemini scoring error:', err.message)
+      // Return default safe score if AI fails — do not crash
+      return {
+        riskScore: 0,
+        riskLevel: 'low',
+        aiReasons: ['AI scoring unavailable'],
+        aiRecommendation: 'review'
+      }
+    }
+  }
+
+  module.exports = { scoreTransaction }
+
+
+----------------------------------------------------
+4.4 SCORING WORKER — POLLS SQS AND SCORES
+----------------------------------------------------
+
+File: /services/ai-scoring-service/src/workers/scoringWorker.js
+
+  const { SQSClient, ReceiveMessageCommand,
+          DeleteMessageCommand } = require('@aws-sdk/client-sqs')
+  const { scoreTransaction } = require('../services/aiScoringService')
+  const Transaction = require('../models/Transaction')
+
+  const sqs = new SQSClient({ region: process.env.AWS_REGION })
+  const SCORING_QUEUE = process.env.SQS_SCORING_QUEUE_URL
+  const NOTIFICATION_QUEUE = process.env.SQS_NOTIFICATION_QUEUE_URL
+
+  async function pollQueue() {
+    try {
+      const command = new ReceiveMessageCommand({
+        QueueUrl: SCORING_QUEUE,
+        MaxNumberOfMessages: 5,
+        WaitTimeSeconds: 10   // long polling — reduces cost
+      })
+
+      const response = await sqs.send(command)
+      if (!response.Messages || response.Messages.length === 0) return
+
+      for (const message of response.Messages) {
+        const body = JSON.parse(message.Body)
+
+        // Score the transaction with Gemini
+        const score = await scoreTransaction(body)
+
+        // Determine status from score
+        let newStatus = 'clean'
+        if (score.riskScore > 90) newStatus = 'fraudulent'
+        else if (score.riskScore > 70) newStatus = 'suspicious'
+
+        // Update transaction in MongoDB
+        await Transaction.findOneAndUpdate(
+          { transactionId: body.transactionId },
+          {
+            riskScore: score.riskScore,
+            riskLevel: score.riskLevel,
+            aiReasons: score.aiReasons,
+            aiRecommendation: score.aiRecommendation,
+            status: newStatus,
+            scoringStatus: 'scored'
+          }
+        )
+
+        // Send to notification queue
+        await sqs.send(new SendMessageCommand({
+          QueueUrl: NOTIFICATION_QUEUE,
+          MessageBody: JSON.stringify({
+            messageType: 'TRANSACTION_SCORED',
+            transactionId: body.transactionId,
+            riskScore: score.riskScore,
+            riskLevel: score.riskLevel,
+            newStatus,
+            aiReasons: score.aiReasons,
+            action: 'auto-flagged',
+            source: 'system'
+          })
+        }))
+
+        // Delete message from queue after processing
+        await sqs.send(new DeleteMessageCommand({
+          QueueUrl: SCORING_QUEUE,
+          ReceiptHandle: message.ReceiptHandle
+        }))
+
+        console.log(`Scored ${body.transactionId}: ${score.riskScore} (${newStatus})`)
+      }
+    } catch (err) {
+      console.error('Worker error:', err.message)
+    }
+  }
+
+  // Poll every 5 seconds
+  setInterval(pollQueue, 5000)
+  console.log('AI Scoring Worker started — polling SQS every 5s')
+
+
+====================================================
+PART 5 — DAY TO DAY TASKS (21 DAYS)
+====================================================
+
+How to use this:
+  Open this file every morning before coding
+  Read ONLY that day's tasks
+  Check off each task as you finish
+  Do NOT move to next day until current day done
+  Minimum 3 hours coding per day
+  30 mins LeetCode EVERY morning before starting
+
+Legend:
+  [ ] = Task to complete
+  [*] = Critical — do not skip
+  [!] = Common mistake — read carefully
+
+
+====================================================
+WEEK 1 — ALL 4 BACKEND SERVICES (Days 1-7)
+====================================================
+
+
+----------------------------------------------------
+DAY 1 — PROJECT SETUP + FOLDER STRUCTURE
+Time: 3 hours
+Goal: Repo ready, all 4 service folders created
+----------------------------------------------------
+
+MORNING — GitHub + Repo Setup
+  [ ] Create GitHub account if you do not have one
+  [ ] Create new repo: fraudguard-microservices
+  [ ] Clone to your computer: git clone <url>
+  [ ] Create this folder structure:
+        fraudguard-microservices/
+        ├── client/
+        ├── services/
+        │   ├── auth-service/
+        │   ├── transaction-service/
+        │   ├── ai-scoring-service/
+        │   └── notification-service/
+        ├── infrastructure/
+        └── README.md
+
+  [ ] Create .gitignore in root:
+        node_modules
+        .env
+        dist
+        .DS_Store
+
+AFTERNOON — Initialize All 4 Services
+  Run these commands one by one:
+
+  cd services/auth-service
+  [ ] npm init -y
+  [ ] npm install express mongoose dotenv jsonwebtoken bcryptjs joi morgan helmet cors
+  [ ] npm install --save-dev nodemon
+  [ ] Create src/ folder inside it
+  [ ] Create src/server.js with basic express app on port 3001
+
+  cd services/transaction-service
+  [ ] npm init -y
+  [ ] npm install express mongoose dotenv jsonwebtoken joi morgan helmet cors
+  [ ] npm install @aws-sdk/client-sqs
+  [ ] npm install --save-dev nodemon
+  [ ] Create src/server.js on port 3002
+
+  cd services/ai-scoring-service
+  [ ] npm init -y
+  [ ] npm install express mongoose dotenv @google/generative-ai
+  [ ] npm install @aws-sdk/client-sqs
+  [ ] npm install --save-dev nodemon
+  [ ] Create src/server.js on port 3003
+
+  cd services/notification-service
+  [ ] npm init -y
+  [ ] npm install express mongoose dotenv
+  [ ] npm install @aws-sdk/client-sqs
+  [ ] npm install --save-dev nodemon
+  [ ] Create src/server.js on port 3004
+
+EVENING — MongoDB Atlas Setup
+  [ ] Go to cloud.mongodb.com — create free account
+  [ ] Create free cluster (M0 — free forever)
+  [ ] Create database user with username and password
+  [ ] Get connection string — looks like:
+        mongodb+srv://youruser:yourpass@cluster0.xxxxx.mongodb.net/fraudguard
+  [ ] Create .env in each service folder with same MONGO_URI
+  [ ] Add /health endpoint to each server.js
+  [ ] Test: npm run dev in each service — all 4 should start
+
+  [*] COMMIT:
+        git add .
+        git commit -m "Day 1: All 4 service folders initialized"
+        git push origin main
+
+  END CHECK:
+  [ ] 4 services start without errors on ports 3001-3004
+  [ ] MongoDB Atlas cluster created
+  [ ] All .env files created (NOT pushed to GitHub)
+
+
+----------------------------------------------------
+DAY 2 — AUTH SERVICE COMPLETE
+Time: 3-4 hours
+Goal: Register, login, JWT working
+----------------------------------------------------
+
+MORNING — User Model + Controller
+  Work inside: /services/auth-service/src/
+
+  [ ] Create config/db.js — mongoose.connect(MONGO_URI)
+  [ ] Call connectDB() in server.js
+
+  [ ] Create models/User.js:
+        Fields: name, email, password, role (analyst/admin),
+                isActive, lastLogin, timestamps
+        Before save hook: hash password with bcrypt (rounds: 12)
+        Method: comparePassword(candidate) using bcrypt.compare
+
+  [ ] Create controllers/authController.js:
+
+        register():
+          - Validate with Joi: name, email, password, role
+          - Check if email already exists → 409 error
+          - Create user
+          - Return { message: 'Registered', user: { name, email, role } }
+          - Never return password
+
+        login():
+          - Validate email + password
+          - Find user by email
+          - If not found → 401 Unauthorized
+          - Compare password → if wrong → 401
+          - Generate JWT: jwt.sign({ id, role }, JWT_SECRET, { expiresIn: '8h' })
+          - Update lastLogin field
+          - Return { token, user: { id, name, email, role } }
+
+        getMe():
+          - Find user by req.user.id
+          - Return user without password
+
+AFTERNOON — Middleware + Routes
+  [ ] Create middleware/authMiddleware.js:
+        - Get token: req.headers.authorization?.split(' ')[1]
+        - Verify: jwt.verify(token, JWT_SECRET)
+        - Set req.user = decoded payload
+        - If no token: 401
+        - If invalid: 401
+
+  [ ] Create middleware/roleMiddleware.js:
+        - Check req.user.role === 'admin'
+        - If not: 403 Forbidden
+
+  [ ] Create routes/authRoutes.js:
+        POST /register  → authController.register
+        POST /login     → authController.login
+        GET  /me        → protect + authController.getMe
+
+  [ ] Register routes in server.js:
+        app.use('/auth', authRoutes)
+
+EVENING — Test in Postman
+  [ ] POST http://localhost:3001/auth/register
+        Body: { name, email, password, role: "admin" }
+        Expect: 201 with user object
+
+  [ ] POST http://localhost:3001/auth/login
+        Body: { email, password }
+        Expect: 200 with token
+
+  [ ] GET http://localhost:3001/auth/me
+        Header: Authorization: Bearer <token>
+        Expect: 200 with user
+
+  [ ] GET http://localhost:3001/auth/me without token
+        Expect: 401 error
+
+  [*] COMMIT: "Day 2: Auth service — register, login, JWT complete"
+
+
+----------------------------------------------------
+DAY 3 — TRANSACTION SERVICE — CRUD
+Time: 3-4 hours
+Goal: Create, read, filter, update transactions
+----------------------------------------------------
+
+MORNING — Transaction Model + Mock Generator
+  Work inside: /services/transaction-service/src/
+
+  [ ] Create config/db.js — same as auth service
+  [ ] Create models/Transaction.js with full schema from Part 2.5
+  [ ] Add indexes to Transaction schema
+
+  [ ] Create utils/generateMockTransaction.js:
+        Returns random transaction object with:
+          transactionId: 'TXN-' + Math.random().toString().slice(2,7)
+          amount: random between 500 and 95000
+          merchantName: random from list of 20 merchants
+            ['Amazon', 'Flipkart', 'Zomato', 'Swiggy', 'IRCTC',
+             'MakeMyTrip', 'Myntra', 'BigBasket', 'PhonePe', 'Paytm',
+             'Croma', 'Reliance Digital', 'BookMyShow', 'OYO', 'Uber',
+             'Ola', 'Nykaa', 'HDFC ATM', 'Petrol Pump', 'Hospital']
+          merchantCategory: random from
+            ['food', 'travel', 'electronics', 'clothing', 'fuel',
+             'medical', 'entertainment', 'finance']
+          location.city: random from 10 Indian cities
+          cardLastFour: random 4 digit string
+          cardType: random credit or debit
+          userId: 'USER-' + random 3 digits
+          timestamp: new Date()
+          status: 'pending'
+          riskScore: 0
+          scoringStatus: 'queued'
+
+AFTERNOON — Controller + SQS Publisher
+  [ ] Create config/sqsClient.js:
+        const { SQSClient } = require('@aws-sdk/client-sqs')
+        module.exports = new SQSClient({ region: process.env.AWS_REGION })
+
+  [!] For local dev, you do NOT need real AWS SQS yet.
+      Add this check in queueService.js:
+        if (process.env.NODE_ENV === 'development') {
+          console.log('DEV MODE: Skipping SQS, logging message:', message)
+          return
+        }
+      This lets you test the rest of the service without AWS.
+
+  [ ] Create services/queueService.js:
+        sendToScoringQueue(transaction) function
+        Uses SendMessageCommand from @aws-sdk/client-sqs
+        Sends transaction data as JSON string
+        Wraps in try/catch — if SQS fails, log error but do not crash
+
+  [ ] Create controllers/transactionController.js:
+
+        getAllTransactions():
+          Accept query params: status, category, minAmount, maxAmount,
+          startDate, endDate, search (for transactionId or merchantName)
+          Build filter object, use Transaction.find(filter).sort({timestamp:-1})
+          Return { transactions, total }
+
+        getOneTransaction():
+          Transaction.findOne({ transactionId: req.params.id })
+          Return full transaction
+
+        createTransaction():
+          If body is empty → use generateMockTransaction()
+          Save to MongoDB with status: pending
+          Call sendToScoringQueue(transaction) — fire and forget
+          Return saved transaction immediately
+
+        updateTransactionStatus():
+          Find by transactionId
+          Validate: note is required, action is valid
+          Update: status, reviewedBy, reviewedByName, reviewedAt, reviewNote
+          Return updated transaction
+
+        getReviewQueue():
+          Find where status = suspicious OR status = pending
+          Sort by riskScore desc
+          Return array
+
+        getDashboardStats():
+          Today's total, flagged, fraudulent count
+          Sum of fraudulent amounts today
+          Return stats object
+
+  [ ] Create routes + register in server.js
+
+EVENING — Test in Postman (auth middleware needed)
+  [!] Transaction service needs to verify JWT too.
+      Copy authMiddleware.js from auth-service into transaction-service.
+      Both use same JWT_SECRET — tokens work across services.
+
+  [ ] Test creating transactions
+  [ ] Test filters
+  [ ] Test review queue
+
+  [*] COMMIT: "Day 3: Transaction service CRUD and SQS publisher"
+
+
+----------------------------------------------------
+DAY 4 — AI SCORING SERVICE (GEMINI)
+Time: 4 hours — most important day
+Goal: Gemini scores every transaction from SQS queue
+----------------------------------------------------
+
+MORNING — Gemini Setup + Scoring Logic
+  Work inside: /services/ai-scoring-service/src/
+
+  [ ] Get FREE Gemini API key:
+        Go to: https://aistudio.google.com/app/apikey
+        Sign in with Google account
+        Click "Create API Key"
+        Copy key to .env as GEMINI_API_KEY
+
+  [ ] Create config/geminiClient.js:
+        const { GoogleGenerativeAI } = require('@google/generative-ai')
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+        module.exports = model
+
+  [ ] Create config/db.js (connects to same fraudguard DB)
+  [ ] Copy Transaction model from transaction-service
+        (Scoring service needs to UPDATE the transaction after scoring)
+
+  [ ] Create services/aiScoringService.js
+        Copy the EXACT code from Part 4.3 of this PRD
+
+AFTERNOON — SQS Worker
+  [ ] Create workers/scoringWorker.js
+        Copy the EXACT code from Part 4.4 of this PRD
+
+  [!] For local development without real AWS SQS:
+      Test the Gemini scoring directly first:
+        Create a test file: src/test-gemini.js
+        const { scoreTransaction } = require('./services/aiScoringService')
+        scoreTransaction({
+          transactionId: 'TXN-99999',
+          amount: 85000,
+          merchantName: 'Apple Store',
+          merchantCategory: 'electronics',
+          location: { city: 'Dubai', country: 'UAE' },
+          timestamp: '2025-01-02T02:30:00Z',
+          cardType: 'credit',
+          cardLastFour: '9821'
+        }).then(result => console.log(result))
+      Run: node src/test-gemini.js
+      You should see a JSON score response from Gemini
+
+EVENING — Connect Worker to Server
+  [ ] In server.js, after connectDB():
+        require('./workers/scoringWorker')  // starts polling
+  [ ] Start the service: npm run dev
+  [ ] Check terminal — should see:
+        "AI Scoring Worker started — polling SQS every 5s"
+
+  [*] COMMIT: "Day 4: AI scoring service with Gemini 1.5 Flash"
+
+  END CHECK:
+  [ ] Gemini API returns valid JSON score for test transaction
+  [ ] Worker starts without errors
+  [ ] Score structure: riskScore, riskLevel, aiReasons, aiRecommendation
+
+
+----------------------------------------------------
+DAY 5 — NOTIFICATION SERVICE + AUDIT LOG
+Time: 3 hours
+Goal: All analyst actions are logged in auditlogs collection
+----------------------------------------------------
+
+MORNING — Notification Service Setup
+  Work inside: /services/notification-service/src/
+
+  [ ] Create config/db.js
+  [ ] Create models/AuditLog.js with schema from Part 2.5
+  [ ] Create config/sqsClient.js (same as transaction service)
+
+  [ ] Create workers/notificationWorker.js:
+        Polls SQS_NOTIFICATION_QUEUE_URL every 5 seconds
+        For each message:
+          Parse body
+          Create new AuditLog document with all fields
+          Save to MongoDB
+          Delete message from queue
+          Console log: "Audit logged: TXN-29821 → auto-flagged"
+
+AFTERNOON — Audit Routes
+  [ ] Create controllers/auditController.js:
+
+        getAllAuditLogs():
+          Admin only (check role from JWT)
+          Filters: analystId, action, startDate, endDate
+          Sort by timestamp desc
+          Return logs array
+
+        getTransactionAuditLog():
+          Find all logs for one transactionId
+          Return array
+
+  [ ] Create routes/auditRoutes.js:
+        GET /audit           → getAllAuditLogs (admin)
+        GET /audit/:txnId    → getTransactionAuditLog
+
+  [!] Copy authMiddleware.js here too — same JWT_SECRET
+
+  [ ] Register in server.js, start worker same as scoring service
+
+EVENING — Test Full Flow End to End
+  [ ] Start all 4 services in 4 separate terminals
+  [ ] POST to transaction service: create a mock transaction
+  [ ] Manually call scoreTransaction() from test file
+  [ ] Manually update transaction status via PATCH
+  [ ] Check MongoDB Atlas — auditlogs collection should have entry
+
+  [*] COMMIT: "Day 5: Notification service and audit logging"
+
+
+----------------------------------------------------
+DAY 6 — DOCKER + LOCAL FULL STACK TEST
+Time: 3-4 hours
+Goal: All 4 services run with one docker-compose command
+----------------------------------------------------
+
+MORNING — Dockerfiles
+  [ ] Install Docker Desktop on your computer
+  [ ] Create Dockerfile in each of 4 service folders:
+
+        FROM node:20-alpine
+        WORKDIR /app
+        COPY package*.json ./
+        RUN npm ci --only=production
+        COPY src/ ./src/
+        EXPOSE 3001
+        CMD ["node", "src/server.js"]
+
+        (Change EXPOSE port for each service: 3001/3002/3003/3004)
+
+AFTERNOON — Docker Compose
+  [ ] Create infrastructure/docker-compose.yml:
+
+        version: '3.8'
+        services:
+          auth-service:
+            build: ../services/auth-service
+            ports:
+              - "3001:3001"
+            env_file:
+              - ../services/auth-service/.env
+
+          transaction-service:
+            build: ../services/transaction-service
+            ports:
+              - "3002:3002"
+            env_file:
+              - ../services/transaction-service/.env
+            depends_on:
+              - auth-service
+
+          ai-scoring-service:
+            build: ../services/ai-scoring-service
+            ports:
+              - "3003:3003"
+            env_file:
+              - ../services/ai-scoring-service/.env
+
+          notification-service:
+            build: ../services/notification-service
+            ports:
+              - "3004:3004"
+            env_file:
+              - ../services/notification-service/.env
+
+  [ ] Run: cd infrastructure && docker-compose up --build
+  [ ] All 4 containers should start
+  [ ] Test /health endpoint for each service
+
+EVENING — Fix Bugs
+  [ ] Fix any Docker build errors (usually missing dependencies)
+  [ ] Test POST to transaction service via Postman
+  [ ] Test GET to auth service via Postman
+  [ ] Everything should work same as without Docker
+
+  [*] COMMIT: "Day 6: Docker and docker-compose setup complete"
+
+
+----------------------------------------------------
+DAY 7 — REST + AWS ACCOUNT SETUP + LEETCODE
+Time: 2-3 hours coding, 1 hour AWS setup
+----------------------------------------------------
+
+  [ ] Create FREE AWS account at aws.amazon.com
+        Use your personal email
+        Add credit card (required for account — but free tier
+        means you will NOT be charged for our services)
+        Select "Basic Support" (free)
+
+  [ ] In AWS Console, set region to: ap-south-1 (Mumbai)
+        This is closest to Bengaluru — lowest latency
+
+  [ ] Create IAM User for your project (do NOT use root account):
+        Go to IAM → Users → Create User
+        Name: fraudguard-deploy
+        Attach policy: AdministratorAccess (for learning)
+        Create access key → save Access Key ID and Secret
+
+  [ ] Install AWS CLI on your computer:
+        https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html
+        Run: aws configure
+        Enter your Access Key ID and Secret
+        Region: ap-south-1
+        Format: json
+
+  [ ] Test: aws sts get-caller-identity
+        Should show your account ID — AWS CLI is working
+
+  [ ] Do 3 LeetCode Easy problems (arrays or strings)
+  [ ] Read Week 2 tasks so you know what is coming
+
+  [*] COMMIT any leftover work from week 1
+
+
+====================================================
+WEEK 2 — REACT FRONTEND (Days 8-14)
+====================================================
+
+
+----------------------------------------------------
+DAY 8 — REACT SETUP + LOGIN PAGE
+Time: 3-4 hours
+Goal: React app running with working login
+----------------------------------------------------
+
+  [ ] cd client
+  [ ] npm create vite@latest . -- --template react
+  [ ] npm install react-router-dom axios
+  [ ] npm install @reduxjs/toolkit react-redux
+  [ ] npm install recharts lucide-react react-hot-toast
+  [ ] npm install @tanstack/react-table react-datepicker
+  [ ] npm install -D tailwindcss postcss autoprefixer
+  [ ] npx tailwindcss init -p
+
+  [ ] Configure tailwind.config.js:
+        content: ["./index.html", "./src/**/*.{js,jsx}"]
+
+  [ ] Add to index.css:
+        @tailwind base;
+        @tailwind components;
+        @tailwind utilities;
+
+  [ ] Add Inter font to index.html via Google Fonts link tag
+
+  [ ] Create .env:
+        VITE_AUTH_URL=http://localhost:3001
+        VITE_TRANSACTION_URL=http://localhost:3002
+        VITE_AUDIT_URL=http://localhost:3004
+
+  [ ] Create src/services/api.js:
+        Two Axios instances:
+          authAPI with baseURL = VITE_AUTH_URL
+          transactionAPI with baseURL = VITE_TRANSACTION_URL
+        Both add Authorization header from localStorage token
+        Both handle 401 by clearing token and redirecting to /login
+
+  [ ] Create Redux store with authSlice
+        State: { user, token, isLoading, error }
+        Actions: setCredentials, logout
+
+  [ ] Build Login.jsx page (dark design from Part 3.8)
+  [ ] Build ProtectedRoute.jsx
+  [ ] Set up all routes in App.jsx
+
+  [ ] Test login with credentials from Day 2 Postman test
+
+  [*] COMMIT: "Day 8: React setup and login page"
+
+
+----------------------------------------------------
+DAY 9 — SIDEBAR + NAVBAR + LAYOUT SHELL
+Time: 3 hours
+Goal: Navigation shell working for all pages
+----------------------------------------------------
+
+  [ ] Build Sidebar.jsx — dark sidebar, all nav links, icons
+  [ ] Build Navbar.jsx — page title, bell icon, user avatar
+  [ ] Build main Layout with Sidebar + Navbar + Outlet
+  [ ] Create empty placeholder pages for all 6 routes
+  [ ] Test all navigation links
+  [ ] Test logout button
+
+  [*] COMMIT: "Day 9: Layout shell with sidebar and navbar"
+
+
+----------------------------------------------------
+DAY 10 — TRANSACTION FEED PAGE
+Time: 4 hours
+Goal: Full transaction table with filters
+----------------------------------------------------
+
+  [ ] Build RiskBadge.jsx — colored pill for risk levels
+  [ ] Build TransactionTable.jsx using TanStack Table
+        All columns from Design PRD section 3.5
+        Risk score with mini progress bar
+        Color-coded rows
+        Pagination 20 per page
+        Clicking a row goes to detail page
+
+  [ ] Build FilterBar.jsx
+        Status dropdown, category dropdown
+        Date range pickers, amount range inputs
+        Search input, Apply + Reset buttons
+
+  [ ] Build full TransactionFeed.jsx page
+        FilterBar at top
+        "Generate Mock Transaction" button (calls POST /transactions)
+        TransactionTable below with real data
+        Loading skeleton while fetching
+
+  [*] COMMIT: "Day 10: Transaction feed with table and filters"
+
+
+----------------------------------------------------
+DAY 11 — TRANSACTION DETAIL PAGE
+Time: 4 hours
+Goal: Detail view with Gemini score gauge and actions
+----------------------------------------------------
+
+  [ ] npm install react-gauge-chart
+  [ ] Build RiskGauge.jsx — semicircle speedometer with score
+  [ ] Build TransactionDetail.jsx:
+        Two column layout (info left, AI analysis right)
+        Gauge chart showing risk score
+        AI reasons as bullet points
+        Analyst action section with note + 3 buttons
+        Action confirmation before submitting
+        Redirect to queue after action
+
+  [*] COMMIT: "Day 11: Transaction detail with gauge and actions"
+
+
+----------------------------------------------------
+DAY 12 — REVIEW QUEUE + AUDIT LOG PAGES
+Time: 3 hours
+----------------------------------------------------
+
+  [ ] Build ReviewQueue.jsx
+        Fetches pending/suspicious transactions
+        Sorted by risk score descending
+        Inline approve/reject buttons with modal
+        Empty state message
+
+  [ ] Build AuditLog.jsx
+        Fetches from notification service port 3004
+        Color coded action column
+        Filter by analyst and action type
+
+  [*] COMMIT: "Day 12: Review queue and audit log pages"
+
+
+----------------------------------------------------
+DAY 13 — ADMIN DASHBOARD + CHARTS
+Time: 4 hours
+----------------------------------------------------
+
+  [ ] Build StatsCard.jsx
+  [ ] Build FraudLineChart.jsx (Recharts LineChart)
+  [ ] Build CategoryPieChart.jsx (Recharts PieChart)
+  [ ] Build HourlyBarChart.jsx (Recharts BarChart)
+  [ ] Build Dashboard.jsx — all 4 stats + 3 charts
+  [ ] All chart data fetched from transaction service /stats and /trends
+
+  [*] COMMIT: "Day 13: Dashboard with charts complete"
+
+
+----------------------------------------------------
+DAY 14 — POLISH + LOADING STATES + MOBILE
+Time: 3-4 hours
+----------------------------------------------------
+
+  [ ] Add skeleton loaders to all pages (Tailwind animate-pulse)
+  [ ] Add empty states to all pages
+  [ ] Add error states with retry button
+  [ ] Add loading spinner to all action buttons
+  [ ] Fix mobile: hamburger sidebar, 2-col stats, responsive table
+  [ ] Test entire app end to end as a new user
+
+  [*] COMMIT: "Day 14: Loading states, error states, mobile responsive"
+
+
+====================================================
+WEEK 3 — AWS DEPLOYMENT + FINISH (Days 15-21)
+====================================================
+
+
+----------------------------------------------------
+DAY 15 — CREATE SQS QUEUES ON AWS
+Time: 3 hours
+Goal: Real AWS SQS working with your services
+----------------------------------------------------
+
+  [ ] Go to AWS Console → SQS → Create Queue
+
+  [ ] Create first queue:
+        Name: fraudguard-transaction-scoring-queue
+        Type: Standard Queue
+        Default settings — click Create
+
+  [ ] Create second queue:
+        Name: fraudguard-notification-queue
+        Type: Standard Queue
+        Click Create
+
+  [ ] Copy both Queue URLs to your .env files
+        SQS_SCORING_QUEUE_URL = https://sqs.ap-south-1...
+        SQS_NOTIFICATION_QUEUE_URL = https://sqs.ap-south-1...
+
+  [ ] Remove the DEV MODE skip from queueService.js
+        (The part that said skip SQS in development)
+
+  [ ] Test full flow locally with real SQS:
+        Create a transaction → check SQS console → message appears
+        Start scoring service → message gets consumed → transaction scored
+        Check notification queue → audit log created
+
+  [*] COMMIT: "Day 15: Real AWS SQS queues integrated"
+
+
+----------------------------------------------------
+DAY 16 — AWS ECR + ECS SETUP
+Time: 4 hours
+Goal: All 4 services running on AWS ECS
+----------------------------------------------------
+
+MORNING — ECR (Container Image Registry)
+  [ ] AWS Console → ECR → Create Repository × 4:
+        fraudguard/auth-service
+        fraudguard/transaction-service
+        fraudguard/ai-scoring-service
+        fraudguard/notification-service
+
+  [ ] Build and push each Docker image:
+        aws ecr get-login-password --region ap-south-1 | \
+          docker login --username AWS --password-stdin \
+          <your-account-id>.dkr.ecr.ap-south-1.amazonaws.com
+
+        docker build -t fraudguard/auth-service ./services/auth-service
+        docker tag fraudguard/auth-service:latest \
+          <account-id>.dkr.ecr.ap-south-1.amazonaws.com/fraudguard/auth-service:latest
+        docker push <account-id>.dkr.ecr.ap-south-1.amazonaws.com/fraudguard/auth-service:latest
+
+        Repeat for all 4 services
+
+AFTERNOON — ECS Cluster + Services
+  [ ] AWS Console → ECS → Create Cluster
+        Name: fraudguard-cluster
+        Infrastructure: Fargate (serverless)
+
+  [ ] Create Task Definition for each service:
+        Family name: fraudguard-auth-task
+        Launch type: Fargate
+        CPU: 0.25 vCPU, Memory: 0.5 GB (free tier)
+        Container: add your ECR image URL
+        Port: 3001
+        Environment variables: add all .env values
+
+        Repeat for all 4 services (ports 3001-3004)
+
+  [ ] Create ECS Service for each task definition:
+        Cluster: fraudguard-cluster
+        Service name: auth-service
+        Desired tasks: 1
+        Launch type: Fargate
+
+  [ ] Wait for services to reach RUNNING status (5-10 min)
+
+  [*] COMMIT: "Day 16: All 4 services deployed to AWS ECS"
+
+
+----------------------------------------------------
+DAY 17 — APPLICATION LOAD BALANCER + FRONTEND DEPLOY
+Time: 4 hours
+----------------------------------------------------
+
+MORNING — Load Balancer
+  [ ] AWS Console → EC2 → Load Balancers → Create ALB
+        Name: fraudguard-alb
+        Internet-facing
+        Add target groups for each service
+        Path-based routing:
+          /auth/* → auth-service target group
+          /transactions/* → transaction-service target group
+          /audit/* → notification-service target group
+
+  [ ] Get ALB DNS name — this is your API base URL
+
+AFTERNOON — Frontend Deploy to S3 + CloudFront
+  [ ] Update client/.env for production:
+        VITE_AUTH_URL=http://your-alb-dns.amazonaws.com
+        VITE_TRANSACTION_URL=http://your-alb-dns.amazonaws.com
+        VITE_AUDIT_URL=http://your-alb-dns.amazonaws.com
+
+  [ ] Build React app: npm run build
+
+  [ ] AWS Console → S3 → Create Bucket
+        Name: fraudguard-frontend
+        Uncheck "Block all public access"
+        Enable static website hosting
+
+  [ ] Upload dist/ folder contents to S3 bucket
+
+  [ ] AWS Console → CloudFront → Create Distribution
+        Origin: your S3 bucket
+        Default root object: index.html
+        Create distribution (takes 10-15 min to deploy)
+
+  [ ] Test your CloudFront URL — full app should load
+
+  [*] COMMIT: "Day 17: Frontend on S3+CloudFront, ALB routing"
+
+
+----------------------------------------------------
+DAY 18 — GITHUB ACTIONS CI/CD
+Time: 3 hours
+----------------------------------------------------
+
+  [ ] Add AWS secrets to GitHub repo:
+        Go to repo Settings → Secrets → Actions
+        Add: AWS_ACCESS_KEY_ID
+        Add: AWS_SECRET_ACCESS_KEY
+        Add: AWS_ACCOUNT_ID
+
+  [ ] Create .github/workflows/deploy-auth.yml
+        Copy exact code from Part 2.10 of this PRD
+        Change service name for each file
+
+  [ ] Create 3 more workflow files:
+        deploy-transaction.yml
+        deploy-scoring.yml
+        deploy-notification.yml
+        deploy-frontend.yml (builds and uploads to S3)
+
+  [ ] Push to main → check GitHub Actions tab
+        Should see workflow running automatically
+        Green checkmark = deployment successful
+
+  [ ] Make a small code change, push, watch auto-deploy
+
+  [*] COMMIT: "Day 18: GitHub Actions CI/CD pipeline complete"
+
+
+----------------------------------------------------
+DAY 19 — README + GITHUB CLEANUP
+Time: 3 hours
+----------------------------------------------------
+
+  [ ] Write professional README.md (see Part 3.10 of this PRD)
+  [ ] Add architecture diagram screenshot to README
+  [ ] Add 3 screenshots of the dashboard
+  [ ] Add live CloudFront URL to README
+  [ ] Clean up: remove console.logs, test files, unused code
+  [ ] Verify .env is not in any commit (check git log)
+  [ ] Check 20+ meaningful commits in history
+
+  [*] COMMIT: "Day 19: README and repo cleanup"
+
+
+----------------------------------------------------
+DAY 20 — DEMO VIDEO + LINKEDIN
+Time: 2-3 hours
+----------------------------------------------------
+
+  [ ] Record 3-5 min demo on Loom (loom.com — free)
+        Show: login → dashboard → generate transaction →
+        wait for Gemini scoring → review queue →
+        detail page with gauge → approve/reject →
+        audit log → charts → CSV export
+
+  [ ] Upload to YouTube (unlisted)
+  [ ] Add video link to README
+
+  [ ] LinkedIn post:
+        "Just built FraudGuard — a microservices fraud detection
+         system on AWS. 4 independent Node.js services communicating
+         via AWS SQS, containerized with Docker on AWS ECS, with a
+         React frontend on S3 + CloudFront. Gemini AI scores every
+         transaction for fraud risk in real-time.
+         Live: [url] | GitHub: [url]
+         #AWS #Microservices #MERN #Docker #Fintech #React"
+
+  [ ] Update resume with new project bullet points (from Part 3.10)
+
+
+----------------------------------------------------
+DAY 21 — INTERVIEW PREP
+Time: 3 hours
+----------------------------------------------------
+
+  [ ] Practice these answers out loud:
+
+        "Tell me about your project" — 2 minutes
+        "Why microservices?" — 45 seconds
+        "Why AWS SQS for communication?" — 45 seconds
+        "How does Gemini scoring work?" — 1 minute
+        "Walk me through your CI/CD pipeline" — 1 minute
+        "What would you improve?" — 30 seconds
+
+  [ ] Know these files line by line:
+        aiScoringService.js (Gemini scoring)
+        scoringWorker.js (SQS polling)
+        authMiddleware.js (JWT verification)
+
+  [ ] Know these AWS concepts to explain:
+        ECS Fargate vs EC2
+        SQS standard queue vs FIFO
+        ALB path-based routing
+        ECR vs Docker Hub
+        CloudFront as CDN
+
+  [ ] Final resume check — add all project details
+
+  [*] FINAL COMMIT: "Day 21: Project complete — interview ready"
+
+
+====================================================
+DAILY HABITS ALL 21 DAYS
+====================================================
+
+Every morning:
+  [ ] 30 mins LeetCode (Easy first 2 weeks, Medium week 3)
+  [ ] Open this file — read only today's tasks
+  [ ] Open 4 terminals — one per service
+
+Every evening:
+  [ ] git commit and push (every single day without fail)
+  [ ] Note what was hard — 2 sentences in a text file
+  [ ] Read tomorrow's tasks
+
+Every 3 days:
+  [ ] Test full app end to end as new user
+  [ ] Fix all bugs before moving forward
+
+
+====================================================
+RESOURCES
+====================================================
+
+Gemini API key (free)
+  https://aistudio.google.com/app/apikey
+
+MongoDB Atlas (free cluster)
+  https://cloud.mongodb.com
+
+AWS Free Tier
+  https://aws.amazon.com/free
+
+Docker Desktop
+  https://www.docker.com/products/docker-desktop
+
+Postman (API testing)
+  https://postman.com
+
+LeetCode (daily practice)
+  https://leetcode.com
+
+Recharts docs
+  https://recharts.org/en-US/api
+
+Tailwind CSS docs
+  https://tailwindcss.com/docs
+
+Loom (demo video, free)
+  https://loom.com
+
+Google Generative AI Node SDK docs
+  https://ai.google.dev/api/node
+
+
+====================================================
+END OF FRAUDGUARD MICROSERVICES PRD
+Stack: MERN | AI: Gemini | DB: 1 MongoDB | Cloud: AWS
+Build it. Deploy it. Own it.
+====================================================
