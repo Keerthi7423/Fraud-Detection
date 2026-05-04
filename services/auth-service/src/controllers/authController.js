@@ -95,9 +95,13 @@ exports.getMe = async (req, res, next) => {
 // Get token from model, create cookie and send response
 const sendTokenResponse = (user, statusCode, res) => {
   // Create token
-  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-    expiresIn: '30d',
-  });
+  const token = jwt.sign(
+    { id: user._id, name: user.name, role: user.role },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: '30d',
+    }
+  );
 
   res.status(statusCode).json({
     success: true,
