@@ -1,0 +1,92 @@
+====================================================
+  FRAUDGUARD — DAY 3: TRANSACTION SERVICE CRUD
+  Technical Documentation & Interview Prep
+====================================================
+
+Goal: Build the Transaction Service, the core microservice responsible for 
+managing financial transactions, filtering data, and publishing messages 
+to the AI scoring queue.
+
+----------------------------------------------------
+1. CORE ARCHITECTURE DECISIONS
+----------------------------------------------------
+
+- MICROSERVICES INDEPENDENCE:
+  The Transaction Service has its own dedicated collection in MongoDB 
+  (transactions) and runs on port 3002. It does not share code with the 
+  Auth Service, although they share the same JWT_SECRET for authentication.
+
+- ASYNCHRONOUS PROCESSING (SQS):
+  When a transaction is created, it is NOT scored immediately in the same 
+  request. Instead, the service saves it to the DB and pushes a message 
+  to AWS SQS. This ensures the user/API client gets a response instantly, 
+  even if the AI scoring takes time.
+
+- FIRE-AND-FORGET PATTERN:
+  The `createTransaction` controller calls `sendToScoringQueue` but doesn't 
+  wait for its result. This prevents SQS network latency from affecting 
+  the API performance.
+
+----------------------------------------------------
+2. FILE-BY-FILE EXPLANATION (INTERVIEW READY)
+----------------------------------------------------
+
+- models/Transaction.js:
+  - Defines the core data structure for transactions.
+  - Key fields: transactionId, amount, status (pending/clean/suspicious/fraudulent), 
+    riskScore (0-100), and aiReasons.
+  - INDEXES: Added indexes on `transactionId` (for fast lookups), `timestamp` 
+    (for sorting/filtering), and `status` (for review queue).
+
+- controllers/transactionController.js:
+  - getAllTransactions(): Implements complex filtering using MongoDB query operators.
+    Supports range filters (minAmount/maxAmount) and date filters (startDate/endDate).
+  - createTransaction(): Handles both real and mock data. If the request body 
+    is empty, it calls `generateMockTransaction()` to ease development/testing.
+  - updateTransactionStatus(): Used by analysts to manually approve or flag 
+    transactions after AI scoring.
+
+- services/queueService.js:
+  - Wrapper for AWS SQS SendMessageCommand.
+  - Includes a "Dev Mode" check to prevent actual SQS calls during local 
+    development, logging the message to the console instead.
+
+- middleware/authMiddleware.js:
+  - Verifies JWT tokens. 
+  - UNLIKE the Auth Service version, this one does NOT query the User database. 
+    It trusts the signed JWT payload (id, name, role) to minimize cross-service 
+    latency and maintain database isolation.
+
+----------------------------------------------------
+3. INTERVIEW QUESTIONS & ANSWERS
+----------------------------------------------------
+
+Q: "How did you handle the high load of transactions?"
+A: "I used an asynchronous approach with AWS SQS. Instead of processing 
+   fraud scoring inside the HTTP request, I offload it to a message queue. 
+   This makes the Transaction Service highly available and scalable."
+
+Q: "Why didn't you use the User model in your Transaction Service middleware?"
+A: "In a microservices architecture, services should be decoupled. Querying 
+    the Users collection from the Transaction Service would create a 'hidden' 
+    dependency. Instead, I trust the JWT payload which is signed by our 
+    Auth Service using a shared secret."
+
+Q: "How do you handle SQS failures?"
+A: "In queueService.js, I wrapped the SQS call in a try/catch. If SQS is down, 
+    we log the error but allow the transaction to be saved in the database 
+    with a 'queued' status. We can later run a cron job to re-sync missed messages."
+
+----------------------------------------------------
+4. HOW TO TEST (POSTMAN)
+----------------------------------------------------
+
+1. REGISTER/LOGIN in Auth Service (port 3001) to get a JWT.
+2. CREATE TRANSACTION:
+   POST http://localhost:3002/transactions
+   Header: Authorization: Bearer <token>
+   Body: {} (empty for mock) or { amount: 5000, ... }
+3. GET ALL:
+   GET http://localhost:3002/transactions?status=pending&minAmount=1000
+4. REVIEW QUEUE:
+   GET http://localhost:3002/transactions/queue
