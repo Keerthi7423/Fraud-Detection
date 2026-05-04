@@ -76,4 +76,3 @@ NEXT STEPS FOR YOU (MANUAL):
    - GET http://localhost:3001/auth/me (Header: Authorization: Bearer <token>)
 
 3. Run `npm run dev` in the `services/auth-service` folder and ensure "MongoDB Connected" appears in the console.
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZjdmM2U3ZjczNmQ1MDU4NWIzNmFkNiIsIm5hbWUiOiJLZWVydGhpIiwicm9sZSI6ImFuYWx5c3QiLCJpYXQiOjE3Nzc4NTc1MTIsImV4cCI6MTc4MDQ0OTUxMn0.jvpDrRAycl27uN-csYhpg4218jWWNyEbQE7TZ61bcwQ
