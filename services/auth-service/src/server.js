@@ -12,6 +12,7 @@ dotenv.config();
 connectDB();
 
 const authRoutes = require('./routes/authRoutes');
+const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
@@ -32,6 +33,9 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// Error Handler
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 3001;
 

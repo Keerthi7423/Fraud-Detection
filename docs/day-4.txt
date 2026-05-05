@@ -1,0 +1,88 @@
+====================================================
+DAY 4 — AUTH SERVICE PART 3 (JWT Middleware + Complete)
+====================================================
+
+In Day 4, we finalized the Auth Service by implementing security layers and error handling. This is a critical part of any microservices architecture, as it ensures that only authorized users can access protected resources.
+
+----------------------------------------------------
+1. KEY IMPLEMENTATIONS
+----------------------------------------------------
+
+A. JWT Authentication Middleware (authMiddleware.js)
+   - Responsibility: Validates the JSON Web Token (JWT) sent in the request headers.
+   - Logic:
+     - Extracts the token from the `Authorization` header (Bearer token).
+     - If no token is found, it returns a 401 (Unauthorized) error.
+     - Uses `jwt.verify()` to check if the token is valid and not expired.
+     - If valid, it attaches the decoded user data (ID, role, etc.) to the `req.user` object, making it available to subsequent route handlers.
+
+B. Role-Based Access Control (roleMiddleware.js)
+   - Responsibility: Restricts access to specific routes based on the user's role.
+   - Logic:
+     - Checks the `role` property on `req.user` (which was set by the auth middleware).
+     - If the role is not 'admin', it returns a 403 (Forbidden) error.
+     - This ensures that administrative actions (like deleting users or viewing sensitive audit logs) are protected.
+
+C. Global Error Handler (errorHandler.js)
+   - Responsibility: Provides a centralized place to handle all errors in the application.
+   - Logic:
+     - Catch-all middleware that receives errors from `next(err)` calls.
+     - Logs the error stack for debugging.
+     - Returns a consistent JSON response to the client with the appropriate status code.
+     - This prevents the application from crashing and keeps the API responses predictable.
+
+----------------------------------------------------
+2. INTERVIEW PREPARATION (JP MORGAN / TIER-1 FINTECH)
+----------------------------------------------------
+
+QUESTION 1: "How do you handle authentication in a microservices environment?"
+ANSWER: 
+"I use JWT (JSON Web Tokens) for stateless authentication. When a user logs in, the Auth Service issues a signed JWT containing user metadata (ID, role). This token is sent by the client in the 'Authorization' header for every subsequent request. Each microservice can then independently verify the token using a shared secret key, ensuring the request is authentic without needing to call the Auth Service every time. This reduces latency and eliminates a single point of failure."
+
+QUESTION 2: "What is the difference between 401 and 403 status codes?"
+ANSWER:
+"401 Unauthorized means the user is not authenticated (they haven't provided a valid token). It's like not having an ID card to enter a building. 
+403 Forbidden means the user is authenticated but does not have the required permissions for that specific resource. It's like having an ID card but trying to enter a 'Staff Only' room."
+
+QUESTION 3: "Why is a global error handler important in Express.js?"
+ANSWER:
+"A global error handler ensures consistency and security. Without it, you might leak sensitive stack traces to the client or send inconsistent error formats. It also simplifies code by allowing you to handle errors in one place instead of adding try-catch blocks everywhere. In a production environment, this is where you would also integrate logging services like Winston or Sentry."
+
+QUESTION 4: "Why use stateless JWT instead of Sessions?"
+ANSWER:
+"In microservices, horizontal scaling is key. Sessions require a centralized store (like Redis) to keep track of user states across multiple server instances. JWTs are self-contained; they carry all the necessary information within the token itself. This makes the services stateless and much easier to scale, as any instance can verify the token without looking up a database."
+
+----------------------------------------------------
+3. TESTING STEPS
+----------------------------------------------------
+
+1. Start the Auth Service:
+   npm run dev (on port 3001)
+
+2. Register an Admin User (Postman):
+   POST http://localhost:3001/auth/register
+   { "name": "Keerthi Admin", "email": "admin@fraudguard.com", "password": "SecurePassword123", "role": "admin" }
+
+3. Login to get the Token:
+   POST http://localhost:3001/auth/login
+   { "email": "admin@fraudguard.com", "password": "SecurePassword123" }
+   -> Save the "token" from the response.
+
+4. Access Protected Route:
+   GET http://localhost:3001/auth/me
+   Headers: { "Authorization": "Bearer YOUR_TOKEN_HERE" }
+   -> Should return 200 OK with user details.
+
+5. Test with No Token:
+   GET http://localhost:3001/auth/me
+   -> Should return 401 { "error": "No token provided" }.
+
+6. Test with Invalid Token:
+   GET http://localhost:3001/auth/me
+   Headers: { "Authorization": "Bearer invalid_token" }
+   -> Should return 401 { "error": "Invalid token" }.
+
+====================================================
+STATUS: DAY 4 COMPLETE
+NEXT STEP: DAY 5 (Transaction Service Setup)
+====================================================
