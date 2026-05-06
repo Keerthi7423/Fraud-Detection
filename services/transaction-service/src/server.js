@@ -1,8 +1,11 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const morgan = require('morgan');
+const helmet = require('helmet');
 const connectDB = require('./config/db');
 const transactionRoutes = require('./routes/transactionRoutes');
+const errorHandler = require('./middleware/errorHandler');
 
 // Load env vars
 dotenv.config();
@@ -18,6 +21,14 @@ app.use(express.json());
 // Enable CORS
 app.use(cors());
 
+// Dev logging middleware
+if (process.env.NODE_ENV === 'development') {
+  app.use(morgan('dev'));
+}
+
+// Security headers
+app.use(helmet());
+
 // Mount routes
 app.use('/transactions', transactionRoutes);
 
@@ -25,6 +36,9 @@ app.use('/transactions', transactionRoutes);
 app.get('/health', (req, res) => {
   res.status(200).json({ success: true, message: 'Transaction Service is healthy' });
 });
+
+// Error handler
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 3002;
 

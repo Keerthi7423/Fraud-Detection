@@ -92,6 +92,7 @@ const transactionSchema = new mongoose.Schema({
 });
 
 // Indexes
+transactionSchema.index({ transactionId: 1, timestamp: -1, status: 1, riskScore: -1 });
 transactionSchema.index({ transactionId: 1 });
 transactionSchema.index({ timestamp: -1 });
 transactionSchema.index({ status: 1 });
