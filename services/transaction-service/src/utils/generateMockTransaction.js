@@ -22,7 +22,7 @@ const generateMockTransaction = () => {
   const city = cities[Math.floor(Math.random() * cities.length)];
   
   return {
-    transactionId: 'TXN-' + Math.random().toString().slice(2, 7),
+    transactionId: 'TXN-' + Date.now().toString().slice(-5),
     amount,
     currency: 'INR',
     merchantName,
