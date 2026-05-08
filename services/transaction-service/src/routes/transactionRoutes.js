@@ -5,7 +5,10 @@ const {
   createTransaction,
   updateTransactionStatus,
   getReviewQueue,
-  getDashboardStats
+  getDashboardStats,
+  getFraudTrends,
+  getFraudByCategory,
+  getFraudByHour
 } = require('../controllers/transactionController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -17,6 +20,9 @@ router.use(protect);
 router.get('/', getAllTransactions);
 router.get('/queue', getReviewQueue);
 router.get('/stats', getDashboardStats);
+router.get('/trends', getFraudTrends);
+router.get('/categories', getFraudByCategory);
+router.get('/hours', getFraudByHour);
 router.get('/:id', getOneTransaction);
 router.post('/', createTransaction);
 router.patch('/:id', authorize('admin', 'analyst'), updateTransactionStatus);
