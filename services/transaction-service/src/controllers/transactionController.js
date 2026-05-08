@@ -98,10 +98,13 @@ exports.createTransaction = async (req, res) => {
 // @access  Private
 exports.updateTransactionStatus = async (req, res) => {
   try {
-    const { status, reviewNote, action } = req.body;
+    const { status, reviewNote } = req.body;
 
-    if (!reviewNote) {
-      return res.status(400).json({ success: false, message: 'Review note is required' });
+    if (!reviewNote || reviewNote.length < 10) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Review note is required and must be at least 10 characters' 
+      });
     }
 
     const transaction = await Transaction.findOne({ transactionId: req.params.id });
@@ -110,7 +113,20 @@ exports.updateTransactionStatus = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Transaction not found' });
     }
 
-    transaction.status = status || transaction.status;
+    // Map status from review action
+    // approved -> clean, rejected -> fraudulent, escalated -> suspicious
+    let dbStatus;
+    if (status === 'approved') dbStatus = 'clean';
+    else if (status === 'rejected') dbStatus = 'fraudulent';
+    else if (status === 'escalated') dbStatus = 'suspicious';
+    else {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid status. Must be approved, rejected, or escalated' 
+      });
+    }
+
+    transaction.status = dbStatus;
     transaction.reviewNote = reviewNote;
     transaction.reviewedBy = req.user.id;
     transaction.reviewedByName = req.user.name;
@@ -152,14 +168,14 @@ exports.getDashboardStats = async (req, res) => {
       {
         $group: {
           _id: null,
-          totalCount: { $sum: 1 },
-          flaggedCount: { 
+          total: { $sum: 1 },
+          flagged: { 
             $sum: { $cond: [{ $in: ['$status', ['suspicious', 'fraudulent']] }, 1, 0] } 
           },
-          fraudulentCount: { 
+          confirmed: { 
             $sum: { $cond: [{ $eq: ['$status', 'fraudulent'] }, 1, 0] } 
           },
-          totalFraudAmount: {
+          saved: {
             $sum: { $cond: [{ $eq: ['$status', 'fraudulent'] }, '$amount', 0] }
           }
         }
@@ -167,13 +183,108 @@ exports.getDashboardStats = async (req, res) => {
     ]);
 
     const result = stats.length > 0 ? stats[0] : {
-      totalCount: 0,
-      flaggedCount: 0,
-      fraudulentCount: 0,
-      totalFraudAmount: 0
+      total: 0,
+      flagged: 0,
+      confirmed: 0,
+      saved: 0
     };
 
     res.status(200).json({ success: true, stats: result });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get last 7 days fraud trends
+// @route   GET /transactions/trends
+// @access  Private
+exports.getFraudTrends = async (req, res) => {
+  try {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const trends = await Transaction.aggregate([
+      { 
+        $match: { 
+          timestamp: { $gte: sevenDaysAgo },
+          status: { $in: ['suspicious', 'fraudulent'] }
+        } 
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { "_id": 1 } },
+      {
+        $project: {
+          date: "$_id",
+          count: 1,
+          _id: 0
+        }
+      }
+    ]);
+
+    res.status(200).json({ success: true, trends });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get fraud by merchant category
+// @route   GET /transactions/categories
+// @access  Private
+exports.getFraudByCategory = async (req, res) => {
+  try {
+    const categories = await Transaction.aggregate([
+      { $match: { status: { $in: ['suspicious', 'fraudulent'] } } },
+      {
+        $group: {
+          _id: "$merchantCategory",
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { count: -1 } },
+      {
+        $project: {
+          category: "$_id",
+          count: 1,
+          _id: 0
+        }
+      }
+    ]);
+
+    res.status(200).json({ success: true, categories });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get fraud by hour of day
+// @route   GET /transactions/hours
+// @access  Private
+exports.getFraudByHour = async (req, res) => {
+  try {
+    const hours = await Transaction.aggregate([
+      { $match: { status: { $in: ['suspicious', 'fraudulent'] } } },
+      {
+        $group: {
+          _id: { $hour: "$timestamp" },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { "_id": 1 } },
+      {
+        $project: {
+          hour: "$_id",
+          count: 1,
+          _id: 0
+        }
+      }
+    ]);
+
+    res.status(200).json({ success: true, hours });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
