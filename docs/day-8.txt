@@ -1,0 +1,75 @@
+====================================================
+DAY 8 — REACT SETUP + SECURE LOGIN SYSTEM
+====================================================
+
+Day 8 marks the beginning of the frontend development for FraudGuard. We transitioned from building the "engine" (backend microservices) to building the "cockpit" (React Analyst Terminal).
+
+----------------------------------------------------
+1. KEY IMPLEMENTATIONS
+----------------------------------------------------
+
+A. Modern Tech Stack Selection
+   - Vite: Chosen for its lightning-fast HMR (Hot Module Replacement) and optimized build process compared to Create React App.
+   - Tailwind CSS: Used for rapid UI development with a focus on the "Premium Dark" aesthetic required for high-stakes financial monitoring.
+   - Redux Toolkit (RTK): Implemented for centralized state management, specifically for handling global authentication state (user data and JWT).
+
+B. Secure API Layer (src/services/api.js)
+   - Responsibility: Manages communication with multiple backend microservices (Auth, Transaction, Audit).
+   - Axios Interceptors: 
+     - Request Interceptor: Automatically attaches the JWT `Authorization` bearer token from localStorage to every outgoing request.
+     - Response Interceptor: Listens for `401 Unauthorized` responses. If a token expires or is invalid, it automatically clears local storage and redirects the user to `/login`, ensuring zero-friction security.
+
+C. Redux Auth Slice (src/store/slices/authSlice.js)
+   - Responsibility: Keeps the user's login status consistent across the entire application.
+   - Persistence: Initialized the state directly from `localStorage`. This prevents the "flash of login screen" when a user refreshes the page while already logged in.
+
+D. Premium Login Interface (src/pages/Login.jsx)
+   - Design: Implemented a high-contrast dark theme (#0F1117) with a subtle radial grid pattern.
+   - UI/UX: Added a Shield icon (branding), loading states in the button using `lucide-react`, and inline error handling.
+   - Validation: Integrated with the Auth Service to provide real-time feedback during login attempts.
+
+----------------------------------------------------
+2. INTERVIEW PREPARATION (TIER-1 FINTECH / MERN)
+----------------------------------------------------
+
+QUESTION 1: "Why did you use Axios Interceptors instead of manually adding headers to every call?"
+ANSWER: 
+"Scalability and DRY (Don't Repeat Yourself) principle. In a microservices architecture like FraudGuard, we talk to multiple services (Auth on 3001, Transactions on 3002). Using interceptors ensures that security logic is centralized. If we ever need to change how we handle tokens (e.g., moving to HttpOnly cookies), we only change it in one file rather than updating 50 different API calls."
+
+QUESTION 2: "How do you handle 'stale' or expired JWTs in the frontend?"
+ANSWER:
+"I implemented a global Response Interceptor. If the backend returns a 401 Unauthorized (which happens when a JWT expires), the interceptor catches it, clears the Redux state and localStorage, and forces a redirect to the login page. This 'Fail-Fast' approach prevents the UI from showing broken or empty data states."
+
+QUESTION 3: "Explain your Redux store structure for this project."
+ANSWER:
+"I used a modular slice-based approach with Redux Toolkit. The `authSlice` manages the user object, the token, and the UI states like `isLoading` and `error`. I initialize the state from `localStorage` to maintain persistence across page refreshes. This ensures a seamless UX where the user stays logged in until they explicitly logout or the session expires."
+
+QUESTION 4: "Why Vite over Create React App (CRA)?"
+ANSWER:
+"Vite uses ES Modules (ESM) during development, which makes it significantly faster than CRA's Webpack-based bundling. For a project with many components (like our upcoming dashboard and charts), Vite provides a much better developer experience with near-instant startups."
+
+QUESTION 5: "What is a 'Protected Route' and how did you implement it?"
+ANSWER:
+"A Protected Route is a higher-order component or a wrapper that checks if a user is authenticated before allowing access to specific pages. I used a `ProtectedRoute` component that reads the authentication state from Redux. If the user isn't logged in, it uses the `<Navigate />` component from `react-router-dom` to send them to `/login`."
+
+----------------------------------------------------
+3. HOW TO TEST DAY 8
+----------------------------------------------------
+
+1. Ensure Backend is Running:
+   - Start Auth Service (Port 3001)
+   - Start Transaction Service (Port 3002)
+
+2. Start Frontend:
+   cd client
+   npm run dev
+
+3. Perform Login:
+   - Use the credentials you created during Day 2 (e.g., admin@fraudguard.ai).
+   - Upon success, you should see the "Dashboard Placeholder" page.
+   - Check your Browser's 'Application' tab -> 'Local Storage'. You should see the `token` and `user` object saved there.
+
+====================================================
+STATUS: DAY 8 COMPLETE
+NEXT STEP: DAY 9 (Sidebar + Navbar + Layout Shell)
+====================================================

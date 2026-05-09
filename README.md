@@ -17,6 +17,11 @@ A high-performance fraud detection system built with a microservices architectur
 - **Database**: MongoDB Atlas.
 - **Infrastructure**: AWS (ECS, SQS, S3, CloudFront), Docker.
 
-## Setup
+## Current Progress
+- [x] Day 1-7: Backend Microservices (Auth, Transaction)
+- [x] Day 8: React Setup + Secure Login System
+- [ ] Day 9: Navigation Shell & Layout
 
+## Setup
 Refer to the documentation in the `docs/` folder for day-by-day implementation details.
+
