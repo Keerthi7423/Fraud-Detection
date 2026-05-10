@@ -23,6 +23,9 @@ app.get('/health', (req, res) => {
 
 // Connect to MongoDB
 connectDB().then(() => {
+  // Start SQS Worker
+  require('./workers/scoringWorker');
+  
   app.listen(PORT, () => {
     console.log(`AI Scoring Service running on port ${PORT}`);
   });
