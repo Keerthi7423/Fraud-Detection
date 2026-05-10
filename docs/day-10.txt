@@ -1,0 +1,69 @@
+====================================================
+DAY 10 — AI SCORING SERVICE COMPLETE (SQS WORKER)
+====================================================
+
+In this task, we finalized the AI Scoring Service by implementing the background worker that processes transactions from AWS SQS and scores them using Gemini AI.
+
+----------------------------------------------------
+1. CORE LOGIC IMPLEMENTED
+----------------------------------------------------
+
+A. Transaction Model Integration
+- The AI Scoring Service now has its own copy of the Transaction model.
+- This is necessary because once the AI scores a transaction, it needs to update the status and risk score in the database.
+- Even though each service has its own responsibility, they share the same 'fraudguard-transactions' collection for data consistency regarding transaction states.
+
+B. SQS Worker (scoringWorker.js)
+- Purpose: Continuously poll the 'transaction-scoring-queue' for new transactions.
+- Logic:
+  1. Poll SQS for messages (Max 5 at a time).
+  2. For each message, parse the transaction data.
+  3. Call the Gemini AI Scoring Service to get a risk assessment.
+  4. Update the Transaction in MongoDB with the score, level, reasons, and recommendation.
+  5. Send a result message to the 'notification-queue' so the Notification Service can log it.
+  6. Delete the message from the SQS queue to prevent re-processing.
+- Frequency: Polling happens every 5 seconds to ensure near real-time processing.
+
+C. Gemini AI Integration
+- We use Google's Gemini 1.5 Flash model for lightning-fast and cost-effective fraud analysis.
+- The AI analyzes: Amount, Merchant, Category, Location, and Timestamp.
+- It returns a structured JSON including: riskScore (0-100), riskLevel, reasons, and recommendation.
+
+----------------------------------------------------
+2. INTERVIEW PREPARATION (Q&A)
+----------------------------------------------------
+
+QUESTION: "Why does the AI Scoring Service need the Transaction model? Shouldn't only the Transaction Service handle the DB?"
+ANSWER: 
+"In a pure microservices architecture, you might have the Scoring Service send a message back to the Transaction Service to update the DB. However, for performance and simplicity in this project, the Scoring Service updates the shared collection directly. This ensures that as soon as the AI finishes, the status is reflected immediately without another network hop between services."
+
+QUESTION: "What happens if the Gemini AI API is down?"
+ANSWER:
+"The worker has robust error handling. If the AI call fails, it returns a default 'safe' score (riskScore: 0, riskLevel: 'low') and adds a reason 'AI scoring unavailable'. This prevents the worker from crashing and ensures that transactions are eventually processed, even if AI is temporarily unavailable."
+
+QUESTION: "Why use SQS instead of calling the AI Scoring Service via HTTP?"
+ANSWER:
+"Using SQS (Message Queue) makes the system asynchronous and resilient. If the AI service is slow or down, the Transaction Service doesn't wait; it just puts the message in the queue. This 'decouples' the services. It also handles traffic spikes easily—messages just wait in the queue until the worker can process them."
+
+QUESTION: "How do you handle 'at-least-once' delivery in SQS?"
+ANSWER:
+"SQS guarantees that a message is delivered at least once. After we successfully process and save the score to the DB, we explicitly call 'DeleteMessageCommand'. This tells SQS the work is done. If the service crashes before deleting the message, it will reappear in the queue after the 'Visibility Timeout', ensuring no transaction goes unscored."
+
+----------------------------------------------------
+3. TECHNICAL STACK USED
+----------------------------------------------------
+- Node.js & Express
+- Mongoose (for MongoDB updates)
+- AWS SDK v3 (@aws-sdk/client-sqs)
+- Google Generative AI SDK (@google/generative-ai)
+- Nodemon (for development)
+
+----------------------------------------------------
+4. EXECUTION STEPS
+----------------------------------------------------
+1. Copied Transaction.js model to the models folder.
+2. Created sqsClient.js to handle AWS communication.
+3. Implemented scoringWorker.js with polling and scoring logic.
+4. Registered the worker in server.js to start on service boot.
+5. Installed missing dependencies (morgan, helmet, cors).
+6. Verified service starts and connects to MongoDB successfully.
