@@ -1,0 +1,65 @@
+====================================================
+  DAY 11: NOTIFICATION SERVICE & AUDIT LOGGING
+====================================================
+
+Today we implemented the fifth and final microservice in our architecture: the Notification Service. This service is responsible for maintaining an audit trail of all significant events related to transactions, such as AI scoring results and manual analyst reviews.
+
+----------------------------------------------------
+1. ARCHITECTURAL OVERVIEW
+----------------------------------------------------
+
+The Notification Service acts as a "Consumer" in our event-driven architecture. 
+- It listens to the `notification-queue` (AWS SQS).
+- Whenever a transaction is scored by the AI Service or updated by an analyst in the Transaction Service, a message is sent to this queue.
+- The Notification Service picks up these messages and writes them to a permanent "Audit Log" collection in MongoDB.
+
+INTERVIEW TIP: This is called "Eventual Consistency." The transaction update and the audit log creation don't happen in the same database transaction. Instead, we use a message queue to ensure that the audit log is *eventually* created, even if the notification service is temporarily down.
+
+----------------------------------------------------
+2. KEY COMPONENTS IMPLEMENTED
+----------------------------------------------------
+
+A. AuditLog Model (src/models/AuditLog.js)
+   - Stores who did what (analyst vs system), when (timestamp), and why (notes/ai reasons).
+   - Fields: transactionId, analystId, action, note, riskScore, etc.
+   - Purpose: Compliance and transparency. In banking, every status change MUST be logged.
+
+B. Notification Worker (src/workers/notificationWorker.js)
+   - A background process that polls AWS SQS every 5 seconds.
+   - It handles "Message Durability": it only deletes the message from SQS *after* successfully saving it to MongoDB. If the DB is down, the message stays in the queue and will be retried later.
+
+C. Audit Controller & Routes (src/controllers/auditController.js)
+   - Provides APIs for the frontend to fetch the history of a transaction.
+   - GET /audit : Fetch all logs.
+   - GET /audit/:txnId : Fetch history for a specific transaction.
+
+D. Shared Auth Middleware
+   - We reused the JWT authentication logic from the Auth Service.
+   - Because all services share the same `JWT_SECRET`, a token issued by the Auth Service is valid for the Notification Service. This is a common pattern in microservices called "Stateless Authentication."
+
+----------------------------------------------------
+3. INTERVIEW QUESTIONS & ANSWERS
+----------------------------------------------------
+
+Q: Why have a separate Notification Service? Why not just log audits in the Transaction Service?
+A: "Separation of Concerns. The Transaction Service should focus on managing the state of payments. Audit logging is a different domain. By separating it, we can scale the logging system independently and ensure that even if the Transaction Service is under heavy load, our audit trail remains intact and reliable."
+
+Q: What happens if the SQS message fails to be processed?
+A: "We use a 'Poll and Delete' strategy. The worker receives the message but does NOT delete it immediately. It only sends the `DeleteMessageCommand` to SQS after the database write is confirmed. If the worker crashes mid-process, the message visibility timeout expires, and SQS makes the message available again for another worker to try."
+
+Q: How do you handle authentication between microservices?
+A: "We use JWT (JSON Web Tokens). The Auth Service signs the token with a secret key. Since all microservices have access to that same secret (stored securely in environment variables or AWS Secrets Manager), they can independently verify the token's validity without having to call the Auth Service every time. This reduces latency and avoids a single point of failure."
+
+----------------------------------------------------
+4. TECHNICAL STACK USED
+----------------------------------------------------
+- Node.js & Express (API Layer)
+- Mongoose (Database Modeling)
+- AWS SDK v3 (@aws-sdk/client-sqs)
+- JWT (Authentication)
+- Morgan & Helmet (Security and Logging)
+
+----------------------------------------------------
+DAY 11 COMPLETE
+----------------------------------------------------
+Next Step: Day 12 - Containerizing all services with Docker and Docker Compose.
