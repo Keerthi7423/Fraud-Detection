@@ -1,0 +1,22 @@
+const AuditLog = require('../models/AuditLog');
+
+exports.getAllAuditLogs = async (req, res) => {
+    try {
+        const logs = await AuditLog.find().sort({ timestamp: -1 }).limit(100);
+        res.json(logs);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.getTransactionAuditLog = async (req, res) => {
+    try {
+        const logs = await AuditLog.find({ transactionId: req.params.txnId }).sort({ timestamp: -1 });
+        if (!logs || logs.length === 0) {
+            return res.status(404).json({ error: 'No audit logs found for this transaction' });
+        }
+        res.json(logs);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
