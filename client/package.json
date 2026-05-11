@@ -18,6 +18,7 @@
     "react-datepicker": "^9.1.0",
     "react-dom": "^19.2.5",
     "react-hot-toast": "^2.6.0",
+    "react-is": "^19.2.6",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.15.0",
     "recharts": "^3.8.1"

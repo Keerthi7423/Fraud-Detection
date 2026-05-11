@@ -8,6 +8,7 @@ import TransactionDetail from './pages/TransactionDetail';
 import ReviewQueue from './pages/ReviewQueue';
 import AuditLog from './pages/AuditLog';
 import ProtectedRoute from './components/ProtectedRoute';
+import Layout from './components/common/Layout';
 
 function App() {
   return (
@@ -17,11 +18,13 @@ function App() {
         <Route path="/login" element={<Login />} />
         
         <Route element={<ProtectedRoute />}>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/transactions" element={<TransactionFeed />} />
-          <Route path="/transactions/:id" element={<TransactionDetail />} />
-          <Route path="/queue" element={<ReviewQueue />} />
-          <Route path="/audit" element={<AuditLog />} />
+          <Route element={<Layout />}>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/transactions" element={<TransactionFeed />} />
+            <Route path="/transactions/:id" element={<TransactionDetail />} />
+            <Route path="/queue" element={<ReviewQueue />} />
+            <Route path="/audit" element={<AuditLog />} />
+          </Route>
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

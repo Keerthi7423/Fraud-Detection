@@ -5,7 +5,7 @@ const authAPI = axios.create({
 });
 
 const transactionAPI = axios.create({
-  baseURL: import.meta.env.VITE_TRANSACTION_URL + '/api', // Assuming /api prefix for transactions
+  baseURL: import.meta.env.VITE_TRANSACTION_URL + '/transactions',
 });
 
 const auditAPI = axios.create({
