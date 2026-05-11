@@ -1,0 +1,64 @@
+====================================================
+  DAY 12: CONTAINERIZATION WITH DOCKER
+====================================================
+
+Today's focus was on bringing our microservices together into a unified, portable environment using Docker and Docker Compose. This is a critical step in modern DevOps and full-stack development, especially when dealing with multiple interconnected services.
+
+----------------------------------------------------
+1. WHY CONTAINERIZATION? (INTERVIEW PERSPECTIVE)
+----------------------------------------------------
+
+The most common question you'll face is: "Why use Docker for microservices?"
+
+- Environment Consistency: "It works on my machine" is no longer an excuse. Docker ensures that the exact same versions of Node.js, dependencies, and OS libraries are used in development, testing, and production.
+- Isolation: Each service (Auth, Transaction, AI, Notification) runs in its own isolated container. A memory leak or crash in one service won't directly affect the others.
+- Scaling: If the Transaction Service is under heavy load, we can easily spin up 10 more instances of JUST that service without touching the rest of the system.
+- Simplified Onboarding: A new developer doesn't need to install Node 20, MongoDB, or set up paths. They just run `docker-compose up` and the whole system starts.
+
+----------------------------------------------------
+2. IMPLEMENTATION DETAILS
+----------------------------------------------------
+
+A. Dockerfile (The Blueprint)
+We created a Dockerfile for each service using a multi-stage-like approach (simplified for now):
+- Base Image: `node:20-alpine` (Alpine is a tiny Linux distro, making our images much smaller and faster to pull).
+- Workdir: `/app` (Keeps our files organized inside the container).
+- Optimization: We `COPY package*.json` and run `npm ci --only=production` BEFORE copying the source code.
+  - WHY? This uses "Docker Layer Caching." If you change your code but not your dependencies, Docker skips the `npm install` step, making builds 10x faster.
+- CMD: `node src/server.js` (Production-ready start command).
+
+B. Docker Compose (The Orchestrator)
+Located in `infrastructure/docker-compose.yml`, this file manages all 4 services at once.
+- build: Points to the directory containing the Dockerfile.
+- ports: Maps the container's internal port to our machine's port (e.g., `3001:3001`).
+- env_file: Automatically loads the `.env` variables into the container. This is crucial for keeping secrets (like JWT_SECRET or AWS keys) out of the image itself.
+- depends_on: Tells Docker to start `auth-service` before `transaction-service`, as the latter depends on the former for middleware.
+
+----------------------------------------------------
+3. INTERVIEW QUESTIONS & ANSWERS
+----------------------------------------------------
+
+Q: What is the difference between an Image and a Container?
+A: "An image is the static template (like a class in OOP), while a container is the running instance (like an object). You can start many containers from a single image."
+
+Q: Why did you use 'node:20-alpine' instead of 'node:20'?
+A: "Size and Security. The standard Node image is ~1GB, while Alpine is ~50MB. Smaller images are faster to deploy and have a smaller attack surface because they don't include unnecessary tools like shells or package managers that hackers could exploit."
+
+Q: How do your microservices talk to each other inside Docker?
+A: "In this setup, they talk via the host's ports (localhost:3001, etc.). However, in a production Docker Network, they can talk using service names (e.g., `http://auth-service:3001`). This is called 'Service Discovery'."
+
+Q: Why use 'npm ci' instead of 'npm install' in Docker?
+A: " `npm ci` (Clean Install) is designed for automated environments. It is faster, more reliable, and strictly follows the `package-lock.json`. If the lock file and package.json don't match, `npm ci` will fail instead of trying to 'fix' them, which prevents subtle version bugs in production."
+
+----------------------------------------------------
+4. TECHNICAL STACK USED
+----------------------------------------------------
+- Docker (Containerization)
+- Docker Compose (Orchestration)
+- Alpine Linux (Base OS)
+- Node.js 20 (Runtime)
+
+----------------------------------------------------
+DAY 12 COMPLETE
+----------------------------------------------------
+Next Step: Day 13 - Backend End-to-End Test and Bug Fixing.

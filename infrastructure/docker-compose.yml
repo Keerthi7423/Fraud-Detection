@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  auth-service:
+    build: ../services/auth-service
+    ports:
+      - "3001:3001"
+    env_file:
+      - ../services/auth-service/.env
+
+  transaction-service:
+    build: ../services/transaction-service
+    ports:
+      - "3002:3002"
+    env_file:
+      - ../services/transaction-service/.env
+    depends_on:
+      - auth-service
+
+  ai-scoring-service:
+    build: ../services/ai-scoring-service
+    ports:
+      - "3003:3003"
+    env_file:
+      - ../services/ai-scoring-service/.env
+
+  notification-service:
+    build: ../services/notification-service
+    ports:
+      - "3004:3004"
+    env_file:
+      - ../services/notification-service/.env
