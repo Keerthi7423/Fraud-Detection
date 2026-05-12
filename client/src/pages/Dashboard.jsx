@@ -5,7 +5,8 @@ import {
   CheckCircle, 
   IndianRupee,
   RefreshCw,
-  LayoutDashboard
+  LayoutDashboard,
+  FileDown
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { transactionAPI } from '../services/api';
@@ -52,6 +53,24 @@ const Dashboard = () => {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      toast.loading('Preparing report...', { id: 'export' });
+      const response = await transactionAPI.get('/export', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `fraud_report_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success('Report downloaded successfully!', { id: 'export' });
+    } catch (err) {
+      console.error('Export failed:', err);
+      toast.error('Failed to export report. Admin access required.', { id: 'export' });
+    }
+  };
+
   useEffect(() => {
     fetchDashboardData();
     const interval = setInterval(fetchDashboardData, 60000); // Refresh every minute
@@ -73,14 +92,23 @@ const Dashboard = () => {
           <h2 className="text-[#94A3B8] text-sm font-medium uppercase tracking-wider">Operational Overview</h2>
           <p className="text-[#F1F5F9] text-2xl font-bold mt-1">Real-time Fraud Intelligence</p>
         </div>
-        <button 
-          onClick={fetchDashboardData}
-          disabled={loading}
-          className="flex items-center justify-center space-x-2 bg-[#1A1D27] border border-[#2A2D3E] px-4 py-2 rounded-lg text-[#94A3B8] hover:text-white hover:border-[#3B82F6] transition-all disabled:opacity-50"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          <span>{loading ? 'Refreshing...' : 'Refresh Data'}</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={handleExport}
+            className="flex items-center justify-center space-x-2 bg-[#3B82F6] hover:bg-[#2563EB] px-4 py-2 rounded-lg text-white transition-all shadow-lg shadow-blue-500/20"
+          >
+            <FileDown className="w-4 h-4" />
+            <span>Export CSV</span>
+          </button>
+          <button 
+            onClick={fetchDashboardData}
+            disabled={loading}
+            className="flex items-center justify-center space-x-2 bg-[#1A1D27] border border-[#2A2D3E] px-4 py-2 rounded-lg text-[#94A3B8] hover:text-white hover:border-[#3B82F6] transition-all disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <span>{loading ? 'Refreshing...' : 'Refresh Data'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Stats Grid - Responsive 1 to 4 cols */}

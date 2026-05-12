@@ -7,13 +7,16 @@ import {
   History, 
   LogOut,
   ShieldCheck,
+  Settings,
   X
 } from 'lucide-react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../../store/slices/authSlice';
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const dispatch = useDispatch();
+
+  const { user } = useSelector((state) => state.auth);
 
   const navItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
@@ -21,6 +24,10 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { name: 'Review Queue', path: '/queue', icon: ShieldAlert },
     { name: 'Audit Log', path: '/audit', icon: History },
   ];
+
+  if (user?.role === 'admin') {
+    navItems.push({ name: 'Admin Panel', path: '/admin', icon: Settings });
+  }
 
   const sidebarClasses = `
     fixed inset-y-0 left-0 z-50 w-64 bg-[#13151F] border-r border-[#2A2D3E] flex flex-col h-screen 

@@ -289,3 +289,25 @@ exports.getFraudByHour = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+// @desc    Export transactions to CSV
+// @route   GET /transactions/export
+// @access  Private (Admin Only)
+exports.exportTransactions = async (req, res) => {
+  try {
+    const transactions = await Transaction.find({ status: 'fraudulent' }).sort({ timestamp: -1 });
+    
+    // Define CSV header
+    let csv = 'Transaction ID,Amount,Currency,Merchant,Category,City,Country,Timestamp,Risk Score,AI Recommendation,Reviewed By\n';
+    
+    // Add rows
+    transactions.forEach(txn => {
+      csv += `${txn.transactionId},${txn.amount},${txn.currency},"${txn.merchantName}","${txn.merchantCategory}","${txn.location.city}","${txn.location.country}",${txn.timestamp.toISOString()},${txn.riskScore},${txn.aiRecommendation},"${txn.reviewedByName || 'System'}"\n`;
+    });
+
+    res.header('Content-Type', 'text/csv');
+    res.attachment(`fraud_report_${new Date().toISOString().split('T')[0]}.csv`);
+    return res.send(csv);
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

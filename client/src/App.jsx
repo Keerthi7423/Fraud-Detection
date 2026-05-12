@@ -7,6 +7,7 @@ import TransactionFeed from './pages/TransactionFeed';
 import TransactionDetail from './pages/TransactionDetail';
 import ReviewQueue from './pages/ReviewQueue';
 import AuditLog from './pages/AuditLog';
+import AdminPanel from './pages/AdminPanel';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/common/Layout';
 
@@ -23,7 +24,10 @@ function App() {
             <Route path="/transactions" element={<TransactionFeed />} />
             <Route path="/transactions/:id" element={<TransactionDetail />} />
             <Route path="/queue" element={<ReviewQueue />} />
-            <Route path="/audit" element={<AuditLog />} />
+            <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+              <Route path="/audit" element={<AuditLog />} />
+              <Route path="/admin" element={<AdminPanel />} />
+            </Route>
           </Route>
         </Route>
 
