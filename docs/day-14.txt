@@ -1,0 +1,81 @@
+====================================================
+DAY 14 — POLISH, LOADING STATES & MOBILE RESPONSIVENESS
+====================================================
+
+INTERVIEW PREPARATION GUIDE
+Project: FraudGuard (Microservices Edition)
+Goal: Explain UX Polish, Resilience, and Responsive Design
+
+----------------------------------------------------
+1. OVERVIEW OF DAY 14 TASKS
+----------------------------------------------------
+Today's focus was on elevating the application from a functional prototype to a production-ready "Premium" terminal. We implemented:
+- Perceived Performance: Added Skeleton Loaders to eliminate jarring layout shifts (CLS).
+- System Resilience: Implemented Error Boundaries and retry mechanisms for every microservice call.
+- UX Feedback: Added loading states to all interactive buttons (Login, Refresh, Actions).
+- Mobile First: Re-engineered the navigation for small screens using a slide-out drawer (Hamburger Menu).
+- Data Integrity: Added Empty States to guide users when no data is present.
+
+----------------------------------------------------
+2. ARCHITECTURAL DECISIONS (INTERVIEW Q&A)
+----------------------------------------------------
+
+QUESTION: "How did you handle loading states in your React application?"
+ANSWER: 
+"I moved away from global 'Loading...' text and implemented Skeleton Loaders using Tailwind's `animate-pulse`. This improves the 'Perceived Performance' of the app. By mimicking the layout of the final content, we reduce Cognitive Load and prevent Layout Shift (CLS), which is a key Core Web Vital. For individual actions like approving a transaction, I added inline spinners to buttons to provide immediate feedback and prevent double-submissions."
+
+QUESTION: "Your app communicates with multiple microservices. How do you handle failures gracefully?"
+ANSWER:
+"Each page is wrapped in localized Error States. If the Transaction Service is down but the Auth Service is up, the user can still log in but will see a clear 'Retry' button on the dashboard. I use try/catch blocks in my fetching logic and state-driven error components. This ensures that a failure in one microservice (like Notification/Audit) doesn't crash the entire dashboard experience."
+
+QUESTION: "How did you make a complex data dashboard responsive for mobile?"
+ANSWER:
+"I used a Mobile-First approach with Tailwind's responsive prefixes (sm, md, lg). 
+1. Navigation: Implemented a responsive sidebar that stays visible on desktop but transforms into a slide-over drawer on mobile triggered by a hamburger menu.
+2. Grid Layouts: The stats cards transition from 1 column (mobile) to 4 columns (desktop).
+3. Tables: Used `overflow-x-auto` to allow horizontal scrolling for dense transaction data without breaking the page layout.
+4. Charts: Wrapped Recharts in `ResponsiveContainer` and handled width issues with `min-w-0` to ensure they scale correctly within flex/grid items."
+
+QUESTION: "Why are 'Empty States' important in a fraud detection system?"
+ANSWER:
+"In fraud detection, 'No data' is often a good sign (it means no high-risk cases). An empty white screen might look like a bug. By adding an 'Empty State' with an icon and a positive message (e.g., 'Queue is empty - Great job!'), we provide clarity to the analyst and improve the overall confidence in the system's state."
+
+----------------------------------------------------
+3. TECHNICAL IMPLEMENTATION DEPTH
+----------------------------------------------------
+
+A. SKELETON PATTERN:
+We created a reusable `Skeleton` primitive. This allows us to quickly build complex skeletons like `TransactionRowSkeleton` or `ChartSkeleton`.
+- Keyword: "Skeleton Screens" vs "Spinners".
+
+B. THE OVERLAY PATTERN:
+For the mobile sidebar, we used a 'Z-index Stack':
+- Content (Z-0)
+- Navbar (Z-30)
+- Backdrop Overlay (Z-40)
+- Sidebar Drawer (Z-50)
+This ensures the sidebar always floats on top and clicks on the backdrop close the menu.
+
+C. RETRY LOGIC:
+The `ErrorState` component accepts an `onRetry` function. This allows the user to re-trigger the API call without refreshing the entire browser, preserving the rest of the application state.
+
+----------------------------------------------------
+4. INTERVIEW "PRO TIPS" & KEYWORDS
+----------------------------------------------------
+- Keywords: "Perceived Performance", "Cumulative Layout Shift (CLS)", "Graceful Degradation", "Mobile-First Design", "Atomic UI Components".
+- Pro Tip: Mention that you used "Lucide React" for icons because they are tree-shakeable (improves bundle size) and look professional in a technical dashboard.
+
+----------------------------------------------------
+5. SUMMARY OF REVISIONS
+----------------------------------------------------
+- Components/Common: Added Skeleton, ErrorState, EmptyState, RiskBadge.
+- Components/Transactions: Added FilterBar.
+- Pages/Dashboard: Integrated Skeletons and Error States.
+- Pages/Feed: Fully implemented with filters and table.
+- Pages/Detail: Fully implemented with AI analysis and actions.
+- Pages/Queue & Audit: Fully implemented with live data fetching.
+- Navigation: Added Hamburger menu and responsive sidebar toggle.
+
+====================================================
+COMMIT: "Day 14: Loading states, error states, mobile responsive"
+====================================================
