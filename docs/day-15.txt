@@ -1,0 +1,71 @@
+====================================================
+DAY 15 — ADVANCED ADMIN FEATURES & SYSTEM HEALTH
+====================================================
+
+INTERVIEW PREPARATION GUIDE
+Project: FraudGuard (Microservices Edition)
+Goal: Explain System Monitoring, Data Export, and Role-Based Access Control (RBAC)
+
+----------------------------------------------------
+1. OVERVIEW OF DAY 15 TASKS
+----------------------------------------------------
+Today's focus was on the "Enterprise" layer of the application. We implemented features that are critical for large-scale financial operations:
+- System Health Monitoring: A real-time dashboard to monitor the status of all 4 microservices.
+- Data Portability: Implemented CSV Export for fraudulent transactions to allow external auditing.
+- Role-Based Access Control (RBAC): Enforced strict 'Admin' only access for sensitive pages.
+- Infrastructure Integrity: Added a diagnostic layer to the frontend to visualize the distributed system.
+
+----------------------------------------------------
+2. ARCHITECTURAL DECISIONS (INTERVIEW Q&A)
+----------------------------------------------------
+
+QUESTION: "How do you monitor the health of your microservices?"
+ANSWER: 
+"I implemented a 'System Health' dashboard in the Admin Panel. Each microservice (Auth, Transaction, AI, Notification) has a dedicated `/health` endpoint. The React frontend polls these endpoints every 30 seconds. This allows administrators to immediately identify if a specific container or service has gone offline, without needing access to complex AWS CloudWatch logs. This is a form of 'Self-Healing' infrastructure visibility."
+
+QUESTION: "Tell me about your RBAC implementation on the frontend."
+ANSWER:
+"I extended the `ProtectedRoute` component to support `allowedRoles`. When a user logs in, their role (Admin or Analyst) is stored in the Redux state. The router then checks this role before rendering sensitive routes like `/admin` or `/audit`. If an Analyst attempts to access an Admin-only page, the system gracefully redirects them to the dashboard. This ensures 'Principle of Least Privilege' (PoLP) is maintained across the UI."
+
+QUESTION: "How did you implement the CSV Export feature?"
+ANSWER:
+"I built a dedicated `/export` endpoint in the Transaction Service that uses MongoDB's cursor to stream fraudulent records. On the frontend, I use `axios` with `responseType: 'blob'` to handle the file download. Instead of just opening a link, this approach allows us to send the JWT token in the header, ensuring that only authorized Admins can trigger the data export. This is critical for maintaining data security during auditing."
+
+QUESTION: "Why did you use 'Blob' objects for the download instead of a simple window.location?"
+ANSWER:
+"In a secure environment, we cannot expose download URLs to the public. By using Blobs and `URL.createObjectURL`, we can fetch the data through an authenticated API call (with the Authorization header) and then trigger a local browser download. This prevents 'Direct Object Reference' vulnerabilities where anyone could download sensitive data by guessing a URL."
+
+----------------------------------------------------
+3. TECHNICAL IMPLEMENTATION DEPTH
+----------------------------------------------------
+
+A. THE HEALTH CHECK PATTERN:
+Each Node.js service now responds with a standard JSON format:
+{ "status": "ok", "service": "auth-service", "timestamp": "..." }
+This allows the frontend to calculate 'Latency' (the round-trip time) and display it to the admin, which is a key metric in distributed systems.
+
+B. SECURE FILE STREAMING:
+The Transaction Service generates the CSV in-memory (for small datasets) and sets the `Content-Type` to `text/csv` with a `Content-Disposition` attachment header. This tells the browser to treat the response as a file rather than a web page.
+
+C. DYNAMIC SIDEBAR:
+The Sidebar component uses Redux state to filter the `navItems`. If a user isn't an Admin, the 'Admin Panel' link is never even rendered. This improves UX by reducing clutter and hiding restricted features.
+
+----------------------------------------------------
+4. INTERVIEW "PRO TIPS" & KEYWORDS
+----------------------------------------------------
+- Keywords: "RBAC (Role-Based Access Control)", "System Health Monitoring", "Data Portability", "Stateless Diagnostics", "Principle of Least Privilege".
+- Pro Tip: Mention that in a real production environment, you would use "AWS CloudWatch Synthetics" or "Prometheus/Grafana" for monitoring, but you built this internal panel for immediate visibility for the Ops team.
+
+----------------------------------------------------
+5. SUMMARY OF REVISIONS
+----------------------------------------------------
+- Backend (Transaction): Added `/export` controller and route (Admin Only).
+- Frontend (Store): Updated `authSlice` with `selectCurrentUser` selector.
+- Frontend (Components): Updated `ProtectedRoute` with `allowedRoles` support.
+- Frontend (Navigation): Added Admin Panel link to `Sidebar` (dynamic).
+- Frontend (Admin): Created `AdminPanel.jsx` with real-time health checks.
+- Frontend (Dashboard): Added "Export CSV" button with authenticated download logic.
+
+====================================================
+COMMIT: "Day 15: Admin Panel, System Health, and CSV Export"
+====================================================

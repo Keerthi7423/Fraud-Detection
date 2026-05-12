@@ -8,7 +8,8 @@ const {
   getDashboardStats,
   getFraudTrends,
   getFraudByCategory,
-  getFraudByHour
+  getFraudByHour,
+  exportTransactions
 } = require('../controllers/transactionController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -18,6 +19,7 @@ const router = express.Router();
 router.use(protect);
 
 router.get('/', getAllTransactions);
+router.get('/export', authorize('admin'), exportTransactions);
 router.get('/queue', getReviewQueue);
 router.get('/stats', getDashboardStats);
 router.get('/trends', getFraudTrends);
