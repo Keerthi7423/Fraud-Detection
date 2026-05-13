@@ -12,7 +12,7 @@ const AuditLog = () => {
   const fetchLogs = async () => {
     try {
       setLoading(true);
-      const response = await auditAPI.get('/audit');
+      const response = await auditAPI.get('/');
       // notification service returns array directly or { success, logs }
       // looking at the controller, it returns logs directly
       setLogs(Array.isArray(response.data) ? response.data : []);

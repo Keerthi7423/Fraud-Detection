@@ -1,12 +1,12 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
-  List, 
-  ShieldAlert, 
-  History, 
+  ArrowLeftRight, 
+  AlertTriangle, 
+  ClipboardList, 
   LogOut,
-  ShieldCheck,
+  Shield,
   Settings,
   X
 } from 'lucide-react';
@@ -15,22 +15,27 @@ import { logout } from '../../store/slices/authSlice';
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const dispatch = useDispatch();
-
+  const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
 
   const navItems = [
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'Transactions', path: '/transactions', icon: List },
-    { name: 'Review Queue', path: '/queue', icon: ShieldAlert },
-    { name: 'Audit Log', path: '/audit', icon: History },
+    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { name: 'Transactions', path: '/transactions', icon: ArrowLeftRight },
+    { name: 'Review Queue', path: '/queue', icon: AlertTriangle, badge: 5 },
+    { name: 'Audit Log', path: '/audit', icon: ClipboardList },
   ];
 
   if (user?.role === 'admin') {
     navItems.push({ name: 'Admin Panel', path: '/admin', icon: Settings });
   }
 
+  const handleLogout = () => {
+    dispatch(logout());
+    navigate('/login');
+  };
+
   const sidebarClasses = `
-    fixed inset-y-0 left-0 z-50 w-64 bg-[#13151F] border-r border-[#2A2D3E] flex flex-col h-screen 
+    fixed inset-y-0 left-0 z-50 w-60 bg-[#13151F] border-r border-[#2A2D3E] flex flex-col h-screen 
     transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0
     ${isOpen ? 'translate-x-0' : '-translate-x-full'}
   `;
@@ -48,9 +53,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       <div className={sidebarClasses}>
         <div className="p-6 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="bg-[#3B82F6] p-2 rounded-lg">
-              <ShieldCheck className="text-white w-6 h-6" />
-            </div>
+            <Shield className="text-[#3B82F6] w-8 h-8" />
             <h1 className="text-xl font-bold text-white tracking-tight">FraudGuard</h1>
           </div>
           <button 
@@ -68,23 +71,38 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
               to={item.path}
               onClick={() => setIsOpen(false)}
               className={({ isActive }) =>
-                `flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                `flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-150 group relative overflow-hidden ${
                   isActive
-                    ? 'bg-[#3B82F6] text-white shadow-lg shadow-blue-500/20'
+                    ? 'bg-gradient-to-r from-[#1A1D27] to-[#13151F] text-white border-l-[3px] border-[#3B82F6] rounded-l-none'
                     : 'text-[#94A3B8] hover:bg-[#1A1D27] hover:text-white'
                 }`
               }
             >
-              <item.icon className="w-5 h-5" />
-              <span className="font-medium">{item.name}</span>
+              <div className="flex items-center space-x-3 relative z-10">
+                <item.icon className={`w-5 h-5 transition-colors duration-150 ${
+                  item.name === 'Review Queue' ? 'group-hover:text-red-400' : 'group-hover:text-[#3B82F6]'
+                }`} />
+                <span className="font-medium">{item.name}</span>
+              </div>
+              {item.badge && (
+                <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full relative z-10 animate-pulse">
+                  {item.badge}
+                </span>
+              )}
+              {/* Subtle hover glow effect */}
+              <div className="absolute inset-0 bg-[#3B82F6]/0 group-hover:bg-[#3B82F6]/5 transition-colors duration-150" />
             </NavLink>
           ))}
         </nav>
 
-        <div className="p-4 border-t border-[#2A2D3E]">
+        <div className="p-4 border-t border-[#2A2D3E] space-y-4">
+          <div className="px-4 py-2">
+            <p className="text-sm font-medium text-white truncate">{user?.name || 'Analyst'}</p>
+            <p className="text-xs text-[#94A3B8] capitalize">{user?.role || 'User'}</p>
+          </div>
           <button
-            onClick={() => dispatch(logout())}
-            className="flex items-center space-x-3 px-4 py-3 w-full text-[#94A3B8] hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all duration-200"
+            onClick={handleLogout}
+            className="flex items-center space-x-3 px-4 py-3 w-full text-[#94A3B8] hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all duration-150"
           >
             <LogOut className="w-5 h-5" />
             <span className="font-medium">Logout</span>
@@ -96,3 +114,4 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
 };
 
 export default Sidebar;
+

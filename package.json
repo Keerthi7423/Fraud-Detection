@@ -1,5 +1,14 @@
 {
+  "name": "fraudguard-monorepo",
+  "version": "1.0.0",
+  "scripts": {
+    "dev:all": "concurrently \"npm run dev --prefix services/auth-service\" \"npm run dev --prefix services/transaction-service\" \"npm run dev --prefix services/ai-scoring-service\" \"npm run dev --prefix services/notification-service\" \"npm run dev --prefix client\"",
+    "install:all": "npm install && npm install --prefix services/auth-service && npm install --prefix services/transaction-service && npm install --prefix services/ai-scoring-service && npm install --prefix services/notification-service && npm install --prefix client"
+  },
   "dependencies": {
     "axios": "^1.16.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }

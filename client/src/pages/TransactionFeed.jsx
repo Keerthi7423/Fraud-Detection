@@ -32,7 +32,7 @@ const TransactionFeed = () => {
       if (filters.status) params.append('status', filters.status);
       if (filters.category) params.append('category', filters.category);
       
-      const response = await transactionAPI.get(`/transactions?${params.toString()}`);
+      const response = await transactionAPI.get(`?${params.toString()}`);
       if (response.data.success) {
         setTransactions(response.data.transactions);
       }
@@ -51,7 +51,7 @@ const TransactionFeed = () => {
   const handleCreateMock = async () => {
     try {
       setCreating(true);
-      const response = await transactionAPI.post('/transactions', {});
+      const response = await transactionAPI.post('/', {});
       if (response.data.success) {
         toast.success('Mock transaction created and queued for scoring!');
         fetchTransactions();
