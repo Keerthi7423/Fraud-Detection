@@ -28,7 +28,7 @@ const TransactionDetail = () => {
   const fetchTransaction = async () => {
     try {
       setLoading(true);
-      const response = await transactionAPI.get(`/transactions/${id}`);
+      const response = await transactionAPI.get(`/${id}`);
       if (response.data.success) {
         setTxn(response.data.transaction);
       }
@@ -51,7 +51,7 @@ const TransactionDetail = () => {
 
     try {
       setActionLoading(true);
-      const response = await transactionAPI.patch(`/transactions/${id}`, {
+      const response = await transactionAPI.patch(`/${id}`, {
         status,
         reviewNote: note
       });

@@ -10,10 +10,12 @@ const Layout = () => {
   const getPageTitle = (pathname) => {
     if (pathname.startsWith('/transactions/')) return 'Transaction Detail';
     switch (pathname) {
-      case '/': return 'Dashboard Overview';
+      case '/':
+      case '/dashboard': return 'Dashboard Overview';
       case '/transactions': return 'Transaction Feed';
       case '/queue': return 'Review Queue';
       case '/audit': return 'System Audit Logs';
+      case '/admin': return 'Admin Control Panel';
       default: return 'FraudGuard Terminal';
     }
   };
