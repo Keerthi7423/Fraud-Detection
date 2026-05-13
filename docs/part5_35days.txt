@@ -251,35 +251,10 @@ Goal: Transaction service running with model ready
 
 
 ----------------------------------------------------
-DAY 6 — TRANSACTION SERVICE PART 2 (Mock Generator + SQS)
+DAY 6 — TRANSACTION SERVICE PART 2 (SQS + Stripe Setup)
 Time: 2-3 hours
-Goal: Can generate mock transactions, SQS publisher ready
+Goal: SQS client ready, Stripe API integration started
 ----------------------------------------------------
-
-  [ ] Create src/utils/generateMockTransaction.js:
-        Returns a random transaction object
-        transactionId: 'TXN-' + Date.now().toString().slice(-5)
-        amount: Math.floor(Math.random() * 95000) + 500
-        merchantName: random from this list:
-          ['Amazon', 'Flipkart', 'Zomato', 'Swiggy', 'IRCTC',
-           'MakeMyTrip', 'Myntra', 'BigBasket', 'Croma',
-           'Reliance Digital', 'BookMyShow', 'OYO', 'Uber',
-           'Ola', 'Nykaa', 'Apple Store', 'Samsung Store',
-           'HDFC ATM', 'Petrol Pump', 'Apollo Pharmacy']
-        merchantCategory: random from:
-          ['food', 'travel', 'electronics', 'clothing',
-           'fuel', 'medical', 'entertainment', 'finance']
-        location.city: random from:
-          ['Mumbai', 'Delhi', 'Bengaluru', 'Chennai',
-           'Hyderabad', 'Pune', 'Kolkata', 'Ahmedabad',
-           'Jaipur', 'Dubai']
-        cardLastFour: Math.floor(Math.random()*9000+1000).toString()
-        cardType: random credit or debit
-        userId: 'USER-' + Math.floor(Math.random()*900+100)
-        timestamp: new Date()
-        status: 'pending'
-        riskScore: 0
-        scoringStatus: 'queued'
 
   [ ] Create src/config/sqsClient.js:
         const { SQSClient } = require('@aws-sdk/client-sqs')
@@ -289,51 +264,54 @@ Goal: Can generate mock transactions, SQS publisher ready
         async function sendToScoringQueue(transaction) {
           if (process.env.NODE_ENV === 'development') {
             console.log('DEV: Would send to SQS:', transaction.transactionId)
-            return  // skip real SQS in dev — add real SQS on Day 29
+            return
           }
-          // Real SQS code goes here later
+          // Real SQS code here
         }
         module.exports = { sendToScoringQueue }
 
-  [*] COMMIT: "Day 6: Mock transaction generator and SQS service"
+  [ ] Get Stripe API Keys (Test Mode):
+        Go to dashboard.stripe.com → Developers → API keys
+        Copy Publishable key and Secret key
+  [ ] Add to .env:
+        STRIPE_SECRET_KEY=sk_test_...
+        STRIPE_WEBHOOK_SECRET=whsec_... (get this from stripe listen)
+
+  [ ] Install stripe package: npm install stripe
+
+  [*] COMMIT: "Day 6: SQS and Stripe setup complete"
 
 
 ----------------------------------------------------
-DAY 7 — TRANSACTION SERVICE PART 3 (CRUD Controller)
+DAY 7 — TRANSACTION SERVICE PART 3 (Stripe Webhook Handler)
 Time: 3 hours
-Goal: All transaction routes working
+Goal: Stripe payments trigger the fraud detection flow
 ----------------------------------------------------
 
-  [ ] Create src/controllers/transactionController.js:
+  [ ] Create src/controllers/webhookController.js:
+        Handle POST /webhook:
+        const sig = req.headers['stripe-signature']
+        const event = stripe.webhooks.constructEvent(req.body, sig, STRIPE_WEBHOOK_SECRET)
+        
+        If event.type === 'payment_intent.succeeded':
+          const pi = event.data.object
+          Extract transaction data:
+            id: pi.id
+            amount: pi.amount / 100
+            currency: pi.currency
+            card: pi.payment_method_details.card (last4, brand)
+            customer: pi.customer
+          Save to Transaction model in MongoDB
+          Call sendToScoringQueue(transaction)
 
-        getAllTransactions():
-          Read query params: status, category, minAmount, maxAmount,
-                             startDate, endDate, search
-          Build filter: {}
-            if status → filter.status = status
-            if category → filter.merchantCategory = category
-            if minAmount or maxAmount → filter.amount = { $gte, $lte }
-            if startDate or endDate → filter.timestamp = { $gte, $lte }
-            if search → filter.$or = [
-              { transactionId: { $regex: search, $options: 'i' } },
-              { merchantName: { $regex: search, $options: 'i' } }
-            ]
-          const transactions = await Transaction.find(filter)
-            .sort({ timestamp: -1 }).limit(50)
-          const total = await Transaction.countDocuments(filter)
-          Return { transactions, total }
+  [ ] Add webhook route to transactionRoutes.js:
+        router.post('/webhook', express.raw({type: 'application/json'}), handleWebhook)
 
-        getOneTransaction():
-          Transaction.findOne({ transactionId: req.params.id })
-          If not found → 404
-          Return transaction
+  [ ] Install Stripe CLI to test locally:
+        stripe listen --forward-to localhost:3002/transactions/webhook
+        stripe trigger payment_intent.succeeded
 
-        createTransaction():
-          If req.body has data → use it
-          Else → use generateMockTransaction()
-          Save new Transaction to DB
-          Call sendToScoringQueue(transaction) — DO NOT await
-          Return saved transaction immediately (do not wait for AI)
+  [*] COMMIT: "Day 7: Stripe webhook integration complete"
 
         updateTransactionStatus():
           const { status, reviewNote } = req.body
@@ -858,10 +836,10 @@ Goal: Full transaction feed page working with real data
         State: transactions, total, filters, loading, error
         On mount: fetch transactions
         On filter change: re-fetch with new params
-        Top bar: FilterBar left + "Generate Mock Transaction" button right
-        Generate button: calls createTransaction(), shows loading spinner,
+        Top bar: FilterBar left + "Simulate Stripe Payment" button right
+        Simulate button: hits /transactions/simulate which triggers a Stripe Test Payment,
           shows success toast, auto-refreshes table after 6 seconds
-          (wait for Gemini scoring to complete)
+          (wait for async Gemini scoring to complete)
         LoadingSkeleton while data fetching
         TransactionTable below
         Empty state if no results
@@ -1520,9 +1498,9 @@ PHASE 1 — BACKEND (Days 1-14)
   Day 3  [ ] Auth service — Register + Login
   Day 4  [ ] Auth service — JWT middleware + complete
   Day 5  [ ] Transaction service — setup + model
-  Day 6  [ ] Transaction service — mock generator + SQS
-  Day 7  [ ] Transaction service — CRUD controller
-  Day 8  [ ] Transaction service — tested + complete
+  Day 6  [ ] Transaction service — SQS + Stripe setup
+  Day 7  [ ] Transaction service — Stripe Webhook handler
+  Day 8  [ ] Transaction service — CRUD + Mock fallback
   Day 9  [ ] Gemini API setup + test
   Day 10 [ ] AI Scoring service — SQS worker
   Day 11 [ ] Notification service — audit log

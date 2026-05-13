@@ -81,7 +81,7 @@ const ReviewQueue = () => {
                     className="hover:bg-[#1A1D27] transition-colors"
                   >
                     <td className="px-6 py-4">
-                      <RiskBadge score={txn.riskScore} />
+                      <RiskBadge level={txn.riskLevel} status={txn.status} />
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-medium text-[#F1F5F9]">{txn.merchantName}</div>
