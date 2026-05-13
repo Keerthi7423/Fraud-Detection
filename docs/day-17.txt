@@ -1,0 +1,56 @@
+DAY 17: ADVANCED COMPONENT ARCHITECTURE & DATA TABLES
+==================================================
+
+OVERVIEW
+--------
+Day 17 focused on building high-performance, reusable UI components for the FraudGuard monitoring interface. The core of this session was implementing a complex Transaction Table using TanStack Table (formerly React Table), alongside specialized badges and skeleton loaders to enhance the User Experience (UX).
+
+KEY IMPLEMENTATIONS
+-------------------
+
+1. RiskBadge Component (Dynamic Styling)
+   - Purpose: Visual indicator of transaction risk level.
+   - Logic: Uses a level-based switch to apply specific color palettes (Low, Medium, High, Critical).
+   - Animation: "Critical" risk levels feature a dual animation—a background pulse and a pinging dot—to immediately draw the analyst's attention.
+   - Props: level (risk tier) and status (current workflow state).
+
+2. LoadingSkeleton (Perceived Performance)
+   - Purpose: To prevent layout shifts and provide feedback during asynchronous data fetching.
+   - Implementation: A row-based skeleton that mimics the actual table structure.
+   - UX Win: Animated shimmer bars provide a "live" feel even before data arrives.
+
+3. TransactionTable (Data Orchestration)
+   - Tech: @tanstack/react-table
+   - Features:
+     - Headless UI: The logic (sorting, pagination) is decoupled from the rendering.
+     - Formatted Data: Indian Rupee (₹) formatting, JetBrains Mono for transaction IDs, and relative time formatting.
+     - Row-Level Intelligence: High-risk rows (Score > 90) automatically apply a subtle red glow and pulse animation via CSS keyframes.
+     - Interactive Actions: Integrated eye icons for deep-link navigation to transaction details.
+
+INTERVIEW PREPARATION GUIDE (Q&A)
+---------------------------------
+
+Q1: Why did you choose TanStack Table instead of a basic HTML table or a ready-made UI table like MUI DataGrid?
+A1: TanStack Table is a "headless" UI library. It provides the logic (sorting, pagination, filtering) without dictating the styling. In a high-stakes Fintech app like FraudGuard, we need total control over the design (dark mode, custom animations, specific brand colors). MUI DataGrid is great but adds significant bundle weight and is harder to customize to this level of design granularity.
+
+Q2: How did you handle the performance of a table that might contain thousands of transactions?
+A2: We implemented client-side pagination (20 rows per page) to limit the number of DOM nodes rendered. Additionally, by using `useMemo` for column definitions, we ensure that the table logic doesn't re-calculate unnecessarily during re-renders, keeping the interface snappy.
+
+Q3: Explain the "Critical Risk" visual feedback system.
+A3: For transactions with a risk score of 91+, we apply a custom CSS class `animate-pulse-subtle` and a red shadow glow. This is achieved by checking the `row.original.riskScore` during the map loop of the table body. It's a "User-Centric" design approach where the most urgent tasks are visually prioritized without overwhelming the user.
+
+Q4: What is a "Skeleton Screen" and why is it better than a Loading Spinner?
+A4: A Loading Spinner is a generic indicator that tells the user "something is happening." A Skeleton Screen actually shows the user *what* is about to appear, reducing cognitive load and making the app feel faster (perceived performance).
+
+Q5: How do you handle currency and date formatting in a global application?
+A5: We use `toLocaleString('en-IN')` for Indian Rupee formatting to ensure correct comma placement (e.g., 1,00,000 instead of 100,000). For dates, we use the native `Date` object methods to extract day, month, and time, ensuring a consistent and readable "Fintech-style" timestamp.
+
+TECH STACK HIGHLIGHTS
+---------------------
+- React 19 (Frontend Framework)
+- TanStack Table v8 (Data Logic)
+- Lucide React (Iconography)
+- Tailwind CSS (Styling & Animations)
+- Framer Motion / CSS Keyframes (Interactive UI)
+
+COMMIT MESSAGE: "Day 17: RiskBadge, Skeleton, TransactionTable components"

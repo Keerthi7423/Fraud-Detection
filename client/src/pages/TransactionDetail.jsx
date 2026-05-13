@@ -98,7 +98,7 @@ const TransactionDetail = () => {
         <div>
           <div className="flex items-center space-x-3">
             <h2 className="text-[#F1F5F9] text-2xl font-bold">{txn.transactionId}</h2>
-            <RiskBadge score={txn.riskScore} />
+            <RiskBadge level={txn.riskLevel} status={txn.status} />
           </div>
           <p className="text-[#94A3B8] mt-1">Merchant: {txn.merchantName}</p>
         </div>
