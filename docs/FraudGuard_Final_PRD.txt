@@ -35,18 +35,18 @@ and is deployed in its own Docker container on AWS.
 Services:
   1. API Gateway              (entry point for all requests)
   2. Auth Service             (login, register, JWT)
-  3. Transaction Service      (CRUD + Stripe Webhooks)
+  3. Transaction Service      (CRUD + Razorpay Webhooks)
   4. AI Scoring Service       (Gemini AI fraud scoring)
   5. Notification Service     (alerts, audit log)
 
 Communication between services:
   Sync  (HTTP) : Frontend → API Gateway → Auth/Transaction Service
-  Async (Stripe): Stripe → Webhook → Transaction Service
+  Async (Razorpay): Razorpay → Webhook → Transaction Service
   Async (Queue): Transaction Service → SQS → AI Scoring Service
                  AI Scoring Service → SQS → Notification Service
 
 This means:
-  - When a transaction occurs on Stripe, a Webhook hits the Transaction Service
+  - When a transaction occurs on Razorpay, a Webhook hits the Transaction Service
   - Transaction Service saves the record and puts a message on an AWS SQS queue
   - AI Scoring Service picks it up, scores it, updates the DB
   - Notification Service picks up the score result and logs it
@@ -134,7 +134,7 @@ SERVICE 3 — TRANSACTION SERVICE
   Runtime         : Node.js 20
   Framework       : Express.js 4
   Database        : MongoDB Atlas (separate DB: fraudguard-transactions)
-  Payment Gateway : Stripe (Webhook integration)
+  Payment Gateway : Razorpay (Webhook integration)
   Message Queue   : AWS SQS (publishes scoring requests)
   AWS SDK         : @aws-sdk/client-sqs
   Port            : 3002
@@ -453,7 +453,7 @@ TRANSACTION SERVICE (port 3002)
   GET   /transactions/trends        Get 7-day trend data
   GET   /transactions/categories    Get fraud by category
   GET   /transactions/:id           Get one transaction
-  POST  /transactions/webhook       Stripe Webhook handler
+  POST  /transactions/webhook       Razorpay Webhook handler
   PATCH /transactions/:id           Update status (review action)
   GET   /transactions/export        Export CSV
 

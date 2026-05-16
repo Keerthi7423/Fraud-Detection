@@ -5,6 +5,7 @@ const morgan = require('morgan');
 const helmet = require('helmet');
 const connectDB = require('./config/db');
 const transactionRoutes = require('./routes/transactionRoutes');
+const webhookController = require('./controllers/webhookController');
 const errorHandler = require('./middleware/errorHandler');
 
 // Load env vars
@@ -15,11 +16,18 @@ connectDB();
 
 const app = express();
 
-// Body parser
-app.use(express.json());
+// 1. WEBHOOK FIRST (Must be before any JSON/Body parsers)
+app.post('/transactions/webhook', express.raw({ type: 'application/json' }), webhookController.handleWebhook);
 
-// Enable CORS
+// 2. GLOBAL MIDDLEWARE
 app.use(cors());
+app.use(express.json());
+app.use(morgan('dev'));
+app.use(helmet());
+
+// 3. OTHER ROUTES
+app.post('/transactions/create-order', webhookController.createOrder);
+app.use('/transactions', transactionRoutes);
 
 // Dev logging middleware
 if (process.env.NODE_ENV === 'development') {

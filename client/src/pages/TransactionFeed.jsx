@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, RefreshCcw } from 'lucide-react';
+import { Plus, RefreshCcw, CreditCard } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { transactionAPI } from '../services/api';
 import FilterBar from '../components/transactions/FilterBar';
@@ -63,6 +63,48 @@ const TransactionFeed = () => {
     }
   };
 
+  const handleRazorpayPayment = async () => {
+    try {
+      // 1. Create order on backend
+      const response = await fetch('http://localhost:3002/transactions/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const order = await response.json();
+
+      if (!order.id) {
+        throw new Error('Failed to create Razorpay order');
+      }
+
+      // 2. Open Razorpay Checkout with Order ID
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_...',
+        amount: order.amount,
+        currency: order.currency,
+        name: "FraudGuard Demo",
+        description: "Auto-Capture Transaction",
+        order_id: order.id, // THE MAGIC KEY FOR AUTOMATIC CAPTURE
+        handler: function (response) {
+          console.log("Razorpay Payment Success:", response);
+          toast.success('Payment successful! Automatic capture in progress...');
+          setTimeout(fetchTransactions, 3000);
+        },
+        prefill: {
+          name: "Test User",
+          email: "test@example.com",
+          contact: "9999999999"
+        },
+        theme: { color: "#3B82F6" }
+      };
+
+      const rzp1 = new window.Razorpay(options);
+      rzp1.open();
+    } catch (error) {
+      console.error('Payment Error:', error);
+      toast.error('Payment failed to initialize');
+    }
+  };
+
 
 
   return (
@@ -83,14 +125,21 @@ const TransactionFeed = () => {
           <button
             onClick={handleCreateMock}
             disabled={creating}
-            className="flex items-center space-x-2 bg-[#3B82F6] hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-bold transition-all disabled:opacity-50"
+            className="flex items-center space-x-2 bg-[#1A1D27] border border-[#2A2D3E] text-[#94A3B8] hover:text-white px-4 py-2 rounded-lg font-medium transition-all disabled:opacity-50"
           >
             {creating ? (
               <RefreshCcw className="w-4 h-4 animate-spin" />
             ) : (
               <Plus className="w-4 h-4" />
             )}
-            <span>Generate Mock</span>
+            <span>Mock</span>
+          </button>
+          <button
+            onClick={handleRazorpayPayment}
+            className="flex items-center space-x-2 bg-[#3B82F6] hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-bold transition-all shadow-lg shadow-blue-500/20"
+          >
+            <CreditCard className="w-4 h-4" />
+            <span>Pay Now (UPI/Card)</span>
           </button>
         </div>
       </div>
