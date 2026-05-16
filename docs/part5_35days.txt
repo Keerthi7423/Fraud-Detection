@@ -251,9 +251,9 @@ Goal: Transaction service running with model ready
 
 
 ----------------------------------------------------
-DAY 6 — TRANSACTION SERVICE PART 2 (SQS + Stripe Setup)
+DAY 6 — TRANSACTION SERVICE PART 2 (SQS + Razorpay Setup)
 Time: 2-3 hours
-Goal: SQS client ready, Stripe API integration started
+Goal: SQS client ready, Razorpay API integration started
 ----------------------------------------------------
 
   [ ] Create src/config/sqsClient.js:
@@ -270,28 +270,29 @@ Goal: SQS client ready, Stripe API integration started
         }
         module.exports = { sendToScoringQueue }
 
-  [ ] Get Stripe API Keys (Test Mode):
-        Go to dashboard.stripe.com → Developers → API keys
+  [ ] Get Razorpay API Keys (Test Mode):
+        Go to dashboard.razorpay.com → Settings → API keys
         Copy Publishable key and Secret key
   [ ] Add to .env:
-        STRIPE_SECRET_KEY=sk_test_...
-        STRIPE_WEBHOOK_SECRET=whsec_... (get this from stripe listen)
+        RAZORPAY_KEY_ID=rzp_test_...
+        RAZORPAY_KEY_SECRET=...
+        RAZORPAY_WEBHOOK_SECRET=... (get from dashboard)
 
-  [ ] Install stripe package: npm install stripe
+  [ ] Install razorpay package: npm install razorpay
 
-  [*] COMMIT: "Day 6: SQS and Stripe setup complete"
+  [*] COMMIT: "Day 6: SQS and Razorpay setup complete"
 
 
 ----------------------------------------------------
-DAY 7 — TRANSACTION SERVICE PART 3 (Stripe Webhook Handler)
+DAY 7 — TRANSACTION SERVICE PART 3 (Razorpay Webhook Handler)
 Time: 3 hours
-Goal: Stripe payments trigger the fraud detection flow
+Goal: Razorpay payments trigger the fraud detection flow
 ----------------------------------------------------
 
   [ ] Create src/controllers/webhookController.js:
         Handle POST /webhook:
-        const sig = req.headers['stripe-signature']
-        const event = stripe.webhooks.constructEvent(req.body, sig, STRIPE_WEBHOOK_SECRET)
+        const sig = req.headers['x-razorpay-signature']
+        const expectedSig = crypto.createHmac('sha256', secret).update(body).digest('hex')
         
         If event.type === 'payment_intent.succeeded':
           const pi = event.data.object
@@ -307,11 +308,11 @@ Goal: Stripe payments trigger the fraud detection flow
   [ ] Add webhook route to transactionRoutes.js:
         router.post('/webhook', express.raw({type: 'application/json'}), handleWebhook)
 
-  [ ] Install Stripe CLI to test locally:
-        stripe listen --forward-to localhost:3002/transactions/webhook
-        stripe trigger payment_intent.succeeded
+  [ ] Use Razorpay Dashboard or Postman to test webhook:
+        POST http://localhost:3002/transactions/webhook
+        Events: payment.captured
 
-  [*] COMMIT: "Day 7: Stripe webhook integration complete"
+  [*] COMMIT: "Day 7: Razorpay webhook integration complete"
 
         updateTransactionStatus():
           const { status, reviewNote } = req.body
@@ -836,8 +837,8 @@ Goal: Full transaction feed page working with real data
         State: transactions, total, filters, loading, error
         On mount: fetch transactions
         On filter change: re-fetch with new params
-        Top bar: FilterBar left + "Simulate Stripe Payment" button right
-        Simulate button: hits /transactions/simulate which triggers a Stripe Test Payment,
+        Top bar: FilterBar left + "Simulate Razorpay Payment" button right
+        Simulate button: hits /transactions/simulate which triggers a Razorpay Test Payment,
           shows success toast, auto-refreshes table after 6 seconds
           (wait for async Gemini scoring to complete)
         LoadingSkeleton while data fetching
@@ -1498,8 +1499,8 @@ PHASE 1 — BACKEND (Days 1-14)
   Day 3  [ ] Auth service — Register + Login
   Day 4  [ ] Auth service — JWT middleware + complete
   Day 5  [ ] Transaction service — setup + model
-  Day 6  [ ] Transaction service — SQS + Stripe setup
-  Day 7  [ ] Transaction service — Stripe Webhook handler
+  Day 6  [ ] Transaction service — SQS + Razorpay setup
+  Day 7  [ ] Transaction service — Razorpay Webhook handler
   Day 8  [ ] Transaction service — CRUD + Mock fallback
   Day 9  [ ] Gemini API setup + test
   Day 10 [ ] AI Scoring service — SQS worker

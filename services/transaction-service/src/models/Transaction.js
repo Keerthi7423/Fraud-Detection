@@ -27,7 +27,7 @@ const transactionSchema = new mongoose.Schema({
   },
   cardType: {
     type: String,
-    enum: ['credit', 'debit']
+    enum: ['credit', 'debit', 'netbanking', 'upi', 'wallet', 'emi', 'paylater']
   },
   location: {
     city: String,
@@ -93,7 +93,6 @@ const transactionSchema = new mongoose.Schema({
 
 // Indexes
 transactionSchema.index({ transactionId: 1, timestamp: -1, status: 1, riskScore: -1 });
-transactionSchema.index({ transactionId: 1 });
 transactionSchema.index({ timestamp: -1 });
 transactionSchema.index({ status: 1 });
 transactionSchema.index({ riskScore: -1 });

@@ -33,6 +33,7 @@
     "normalize-path": "^3.0.0",
     "picomatch": "^2.3.2",
     "pstree.remy": "^1.1.8",
+    "razorpay": "^2.9.6",
     "readdirp": "^3.6.0",
     "semver": "^7.7.4",
     "simple-update-notifier": "^2.0.0",
