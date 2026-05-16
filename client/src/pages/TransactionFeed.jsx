@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, RefreshCcw, CreditCard } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { transactionAPI } from '../services/api';
+import transactionService from '../services/transactionService';
 import FilterBar from '../components/transactions/FilterBar';
 import TransactionTable from '../components/transactions/TransactionTable';
 import LoadingSkeleton from '../components/common/LoadingSkeleton';
@@ -20,21 +20,26 @@ const TransactionFeed = () => {
     status: '',
     category: '',
     minAmount: '',
-    maxAmount: ''
+    maxAmount: '',
+    fromDate: null,
+    toDate: null
   });
 
   const fetchTransactions = async () => {
     try {
       setLoading(true);
       setError(null);
-      const params = new URLSearchParams();
-      if (filters.search) params.append('search', filters.search);
-      if (filters.status) params.append('status', filters.status);
-      if (filters.category) params.append('category', filters.category);
       
-      const response = await transactionAPI.get(`?${params.toString()}`);
-      if (response.data.success) {
-        setTransactions(response.data.transactions);
+      // Prepare filters for API (map fromDate -> startDate, toDate -> endDate)
+      const apiFilters = {
+        ...filters,
+        startDate: filters.fromDate ? filters.fromDate.toISOString() : undefined,
+        endDate: filters.toDate ? filters.toDate.toISOString() : undefined
+      };
+
+      const response = await transactionService.getTransactions(apiFilters);
+      if (response.success) {
+        setTransactions(response.transactions);
       }
     } catch (err) {
       console.error('Fetch error:', err);
@@ -51,15 +56,50 @@ const TransactionFeed = () => {
   const handleCreateMock = async () => {
     try {
       setCreating(true);
-      const response = await transactionAPI.post('/', {});
-      if (response.data.success) {
+      const response = await transactionService.createTransaction();
+      if (response.success) {
         toast.success('Mock transaction created and queued for scoring!');
-        fetchTransactions();
+        // Small delay to allow worker to start processing
+        setTimeout(fetchTransactions, 2000);
       }
     } catch (err) {
       toast.error('Failed to create mock transaction');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleReset = () => {
+    const defaultFilters = {
+      search: '',
+      status: '',
+      category: '',
+      minAmount: '',
+      maxAmount: '',
+      fromDate: null,
+      toDate: null
+    };
+    setFilters(defaultFilters);
+    // Use the default filters immediately for the fetch
+    fetchTransactionsWithFilters(defaultFilters);
+  };
+
+  const fetchTransactionsWithFilters = async (filtersToUse) => {
+    try {
+      setLoading(true);
+      const apiFilters = {
+        ...filtersToUse,
+        startDate: filtersToUse.fromDate ? filtersToUse.fromDate.toISOString() : undefined,
+        endDate: filtersToUse.toDate ? filtersToUse.toDate.toISOString() : undefined
+      };
+      const response = await transactionService.getTransactions(apiFilters);
+      if (response.success) {
+        setTransactions(response.transactions);
+      }
+    } catch (err) {
+      setError('Failed to load transactions.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -83,11 +123,11 @@ const TransactionFeed = () => {
         currency: order.currency,
         name: "FraudGuard Demo",
         description: "Auto-Capture Transaction",
-        order_id: order.id, // THE MAGIC KEY FOR AUTOMATIC CAPTURE
+        order_id: order.id,
         handler: function (response) {
           console.log("Razorpay Payment Success:", response);
           toast.success('Payment successful! Automatic capture in progress...');
-          setTimeout(fetchTransactions, 3000);
+          setTimeout(fetchTransactions, 5000);
         },
         prefill: {
           name: "Test User",
@@ -104,8 +144,6 @@ const TransactionFeed = () => {
       toast.error('Payment failed to initialize');
     }
   };
-
-
 
   return (
     <div className="space-y-6">
@@ -148,10 +186,7 @@ const TransactionFeed = () => {
         filters={filters} 
         setFilters={setFilters} 
         onApply={fetchTransactions} 
-        onReset={() => {
-          setFilters({ search: '', status: '', category: '', minAmount: '', maxAmount: '' });
-          // Fetch will trigger due to effect or manual call
-        }}
+        onReset={handleReset}
         loading={loading}
       />
 
@@ -160,13 +195,16 @@ const TransactionFeed = () => {
       ) : error ? (
         <ErrorState message={error} onRetry={fetchTransactions} />
       ) : transactions.length === 0 ? (
-        <EmptyState />
+        <EmptyState 
+          title="No transactions found" 
+          description="Try adjusting your filters or create a mock transaction to see results." 
+        />
       ) : (
         <TransactionTable data={transactions} />
       )}
-
     </div>
   );
 };
 
 export default TransactionFeed;
+
