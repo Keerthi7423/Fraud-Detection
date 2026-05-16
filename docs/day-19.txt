@@ -1,0 +1,65 @@
+DAY 19: TRANSACTION DETAIL, RISK VISUALIZATION & ANALYST WORKFLOW
+==============================================================
+
+OVERVIEW
+--------
+Day 19 focused on the granular investigation experience. We built the "Transaction Detail" view, which is where fraud analysts make critical decisions. This session combined data visualization (Risk Gauge), AI reasoning display, and the analyst action workflow (Approve/Reject/Escalate) with a strict audit trail.
+
+KEY IMPLEMENTATIONS
+-------------------
+
+1. RiskGauge Component (Advanced Visualization)
+   - Tech: `react-gauge-chart`
+   - Purpose: To give analysts an immediate "gut feel" for the transaction risk level.
+   - Design: 
+     - 20 levels of granularity.
+     - Tri-color gradient (Green -> Amber -> Red).
+     - Dynamic text display using JetBrains Mono for a technical, high-precision aesthetic.
+     - Smooth animations to make the interface feel alive and premium.
+
+2. Comprehensive Transaction Deep-Dive
+   - Layout: Two-column desktop layout that intelligently collapses on mobile.
+   - Core Data Card: Displays sensitive information (Card last 4, IP Address, Location Context) using a high-contrast dark theme.
+   - AI Reasoning Engine: A dedicated section that maps `aiReasons` from the Gemini service into scannable, icon-indexed alerts. This explains *why* the AI flagged the transaction, which is critical for human oversight.
+
+3. Analyst Decision Workflow (The Action Hub)
+   - Features:
+     - Real-time validation: Action buttons are disabled until a valid review note (min 10 chars) is provided.
+     - Workflow States: Differentiates between 'Approve (Clean)', 'Reject (Fraud)', and 'Escalate (L2 Review)'.
+     - Persistence: Once a transaction is reviewed, the interface locks the input and displays a "Case Closed" status with analyst credentials and timestamps.
+     - Confirmation Loop: Implements `window.confirm` to prevent accidental high-stakes actions.
+
+INTERVIEW PREPARATION GUIDE (Q&A)
+---------------------------------
+
+Q1: How do you ensure that analysts don't perform actions accidentally?
+A1: We use a multi-layered safety approach:
+    1. Validation: The "Approve/Reject" buttons require a mandatory note, preventing one-click accidental triggers.
+    2. Confirmation: A browser-native `window.confirm` dialog acts as a final checkpoint.
+    3. State Locking: Once an action is performed, the backend updates the status, and the frontend renders a read-only "Case Closed" view, preventing double-processing.
+
+Q2: Explain the "Explainable AI" (XAI) feature in this project.
+A2: Modern fraud systems can't just provide a score; they must provide a reason. We use Gemini AI to generate specific bullet points (e.g., "Mismatched IP and Billing City"). We display these in the "AI Analysis" section. This empowers the human analyst to verify the AI's logic, reducing "Black Box" syndrome and increasing trust in the system.
+
+Q3: How do you handle deep-linking and state synchronization?
+A3: We use `react-router-dom`'s `useParams` to extract the Transaction ID from the URL. This allows analysts to share links to specific cases. We use a `useEffect` hook to fetch the latest data from the `transactionService` on mount, ensuring the analyst always sees the most recent state of the transaction.
+
+Q4: Why did you build a custom SVG Gauge instead of using a library like `react-gauge-chart`?
+A4: During development, I encountered a dependency conflict where `react-gauge-chart` (an older CommonJS package) was attempting to use `require()` in a modern ESM/Vite environment. Instead of adding heavy polyfills or "shimming" the environment, I chose to build a **Custom SVG Gauge Component**. This resulted in:
+    1. Zero External Dependencies: Reduced the bundle size.
+    2. Better Performance: Native SVG transitions are smoother than heavy library re-renders.
+    3. Perfect Theming: I could match the exact "FraudGuard" color palette and typography (JetBrains Mono) without fighting library defaults.
+    *This demonstrates an ability to solve technical roadblocks through engineering rather than just adding more packages.*
+
+Q5: How does the audit trail work in your system?
+A5: Every action taken in the Detail view is sent to the backend via a `PATCH` request. The payload includes the `status` and `reviewNote`. The backend automatically attaches the `reviewedBy` (from the JWT token) and `reviewedAt` (server timestamp). This creates an immutable record in the database for compliance and quality assurance.
+
+TECH STACK HIGHLIGHTS
+---------------------
+- React Gauge Chart (Visual metrics)
+- Lucide React (Workflow iconography)
+- Tailwind CSS (Premium glassmorphism and gradients)
+- React Router (Dynamic routing and deep linking)
+- Transaction Service (Abstracted data orchestration)
+
+COMMIT MESSAGE: "Day 19: Transaction detail with gauge and actions"
