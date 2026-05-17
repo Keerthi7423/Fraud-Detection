@@ -2,7 +2,22 @@ const AuditLog = require('../models/AuditLog');
 
 exports.getAllAuditLogs = async (req, res) => {
     try {
-        const logs = await AuditLog.find().sort({ timestamp: -1 }).limit(100);
+        const { analystName, action, startDate, endDate } = req.query;
+        let filter = {};
+
+        if (analystName) {
+            filter.analystName = { $regex: analystName, $options: 'i' };
+        }
+        if (action) {
+            filter.action = action;
+        }
+        if (startDate || endDate) {
+            filter.timestamp = {};
+            if (startDate) filter.timestamp.$gte = new Date(startDate);
+            if (endDate) filter.timestamp.$lte = new Date(endDate);
+        }
+
+        const logs = await AuditLog.find(filter).sort({ timestamp: -1 }).limit(100);
         res.json(logs);
     } catch (error) {
         res.status(500).json({ error: error.message });
