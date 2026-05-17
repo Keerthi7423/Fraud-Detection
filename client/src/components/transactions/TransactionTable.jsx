@@ -10,7 +10,7 @@ import { Eye, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDow
 import { useNavigate } from 'react-router-dom';
 import RiskBadge from '../common/RiskBadge';
 
-const TransactionTable = ({ data = [], loading }) => {
+const TransactionTable = ({ data = [], loading, isQueueView, onAction }) => {
   const navigate = useNavigate();
   const [sorting, setSorting] = useState([]);
 
@@ -119,18 +119,45 @@ const TransactionTable = ({ data = [], loading }) => {
       {
         id: 'actions',
         header: 'Actions',
-        cell: (info) => (
-          <button
-            onClick={() => navigate(`/transactions/${info.row.original.transactionId}`)}
-            className="p-2 hover:bg-blue-500/10 text-blue-400 rounded-lg transition-colors"
-            title="View Details"
-          >
-            <Eye size={18} />
-          </button>
-        ),
+        cell: (info) => {
+          if (isQueueView) {
+            return (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={(e) => { e.stopPropagation(); onAction(info.row.original.transactionId, 'approved'); }}
+                  className="px-3 py-1 bg-green-500/10 text-green-500 hover:bg-green-500/20 rounded-md transition-colors text-xs font-semibold border border-green-500/20 hover:border-green-500/50"
+                >
+                  Approve
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onAction(info.row.original.transactionId, 'rejected'); }}
+                  className="px-3 py-1 bg-red-500/10 text-red-500 hover:bg-red-500/20 rounded-md transition-colors text-xs font-semibold border border-red-500/20 hover:border-red-500/50"
+                >
+                  Reject
+                </button>
+                <button
+                  onClick={() => navigate(`/transactions/${info.row.original.transactionId}`)}
+                  className="p-1 hover:bg-blue-500/10 text-blue-400 rounded-md transition-colors ml-1"
+                  title="View Details"
+                >
+                  <Eye size={16} />
+                </button>
+              </div>
+            );
+          }
+          return (
+            <button
+              onClick={() => navigate(`/transactions/${info.row.original.transactionId}`)}
+              className="p-2 hover:bg-blue-500/10 text-blue-400 rounded-lg transition-colors"
+              title="View Details"
+            >
+              <Eye size={18} />
+            </button>
+          );
+        },
       },
     ],
-    [navigate]
+    [navigate, isQueueView, onAction]
   );
 
   const table = useReactTable({
