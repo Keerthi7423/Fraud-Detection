@@ -1,25 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ShieldAlert, RefreshCcw, Eye, ArrowRight } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { CheckCircle, RefreshCcw } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import TransactionTable from '../components/transactions/TransactionTable';
+import ActionModal from '../components/transactions/ActionModal';
 import { transactionAPI } from '../services/api';
-import RiskBadge from '../components/common/RiskBadge';
-import { TransactionRowSkeleton } from '../components/common/Skeleton';
-import EmptyState from '../components/common/EmptyState';
 
 const ReviewQueue = () => {
-  const navigate = useNavigate();
+  const [queue, setQueue] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [transactions, setTransactions] = useState([]);
+  const [error, setError] = useState(null);
+  
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedTxn, setSelectedTxn] = useState(null);
+  const [actionType, setActionType] = useState(null); // 'approved' or 'rejected'
 
   const fetchQueue = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
       const response = await transactionAPI.get('/queue');
-      if (response.data.success) {
-        setTransactions(response.data.transactions);
-      }
+      // Assume response.data returns the array directly based on transactionService, or handles .data.transactions
+      const data = response.data.transactions || response.data;
+      setQueue(Array.isArray(data) ? data : []);
+      setError(null);
     } catch (err) {
+      console.error('Failed to fetch queue', err);
+      setError('Failed to load review queue. Please try again.');
       toast.error('Failed to load review queue');
     } finally {
       setLoading(false);
@@ -30,90 +35,84 @@ const ReviewQueue = () => {
     fetchQueue();
   }, []);
 
+  const handleActionClick = (transactionId, action) => {
+    setSelectedTxn(transactionId);
+    setActionType(action);
+    setModalOpen(true);
+  };
+
+  const handleConfirmAction = async (note) => {
+    try {
+      await transactionAPI.patch(`/${selectedTxn}`, {
+        status: actionType,
+        reviewNote: note
+      });
+      toast.success(`Transaction ${selectedTxn} ${actionType} successfully`);
+      setModalOpen(false);
+      fetchQueue();
+    } catch (err) {
+      console.error(`Failed to ${actionType} transaction`, err);
+      toast.error(err.response?.data?.error || `Failed to ${actionType} transaction`);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex justify-between items-end">
         <div>
-          <h2 className="text-[#94A3B8] text-sm font-medium uppercase tracking-wider">Manual Review</h2>
-          <p className="text-[#F1F5F9] text-2xl font-bold mt-1">High Risk Queue</p>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-[#F1F5F9]">Review Queue</h1>
+            <span className="bg-amber-500/10 text-amber-500 border border-amber-500/20 px-3 py-1 rounded-full text-sm font-semibold flex items-center justify-center">
+              {queue.length} Pending
+            </span>
+          </div>
+          <p className="text-gray-400 mt-1">Sorted by risk — highest risk first</p>
         </div>
         <button
           onClick={fetchQueue}
-          className="p-2 bg-[#1A1D27] border border-[#2A2D3E] rounded-lg text-[#94A3B8] hover:text-white transition-all"
+          className="p-2 bg-[#1A1D27] border border-[#2A2D3E] rounded-lg text-[#94A3B8] hover:text-white transition-all flex items-center"
         >
           <RefreshCcw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
 
-      <div className="bg-[#11131C] border border-[#2A2D3E] rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-[#1A1D27] border-b border-[#2A2D3E]">
-                <th className="px-6 py-4 text-xs font-bold text-[#4B5563] uppercase tracking-wider">Priority</th>
-                <th className="px-6 py-4 text-xs font-bold text-[#4B5563] uppercase tracking-wider">Merchant</th>
-                <th className="px-6 py-4 text-xs font-bold text-[#4B5563] uppercase tracking-wider">Amount</th>
-                <th className="px-6 py-4 text-xs font-bold text-[#4B5563] uppercase tracking-wider">AI Flags</th>
-                <th className="px-6 py-4 text-xs font-bold text-[#4B5563] uppercase tracking-wider">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#2A2D3E]">
-              {loading ? (
-                Array(5).fill(0).map((_, i) => (
-                  <tr key={i}>
-                    <td colSpan="5"><TransactionRowSkeleton /></td>
-                  </tr>
-                ))
-              ) : transactions.length === 0 ? (
-                <tr>
-                  <td colSpan="5" className="p-8">
-                    <EmptyState 
-                      title="Queue is empty" 
-                      description="Great job! All high-risk transactions have been reviewed." 
-                      icon={ShieldAlert}
-                    />
-                  </td>
-                </tr>
-              ) : (
-                transactions.map((txn) => (
-                  <tr 
-                    key={txn.transactionId}
-                    className="hover:bg-[#1A1D27] transition-colors"
-                  >
-                    <td className="px-6 py-4">
-                      <RiskBadge level={txn.riskLevel} status={txn.status} />
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-[#F1F5F9]">{txn.merchantName}</div>
-                      <div className="text-xs text-[#4B5563]">{txn.transactionId}</div>
-                    </td>
-                    <td className="px-6 py-4 text-sm font-bold text-[#F1F5F9]">
-                      ₹{txn.amount.toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center text-xs text-purple-400">
-                        <span className="bg-purple-500/10 px-2 py-1 rounded">
-                          {txn.aiReasons?.length || 0} reasons detected
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <button
-                        onClick={() => navigate(`/transactions/${txn.transactionId}`)}
-                        className="flex items-center space-x-2 bg-[#1A1D27] border border-[#2A2D3E] px-4 py-2 rounded-lg text-[#3B82F6] hover:bg-[#3B82F6] hover:text-white transition-all text-sm font-bold"
-                      >
-                        <Eye className="w-4 h-4" />
-                        <span>Review</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {/* Content */}
+      {error ? (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-8 text-center">
+          <p className="text-red-400 mb-4">{error}</p>
+          <button 
+            onClick={fetchQueue}
+            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium"
+          >
+            Retry
+          </button>
         </div>
-      </div>
+      ) : queue.length === 0 && !loading ? (
+        <div className="bg-[#11131C] border border-[#2A2D3E] rounded-xl p-16 flex flex-col items-center justify-center text-center">
+          <div className="bg-green-500/10 text-green-500 p-4 rounded-full mb-4">
+            <CheckCircle size={48} />
+          </div>
+          <h2 className="text-xl font-bold text-white mb-2">All caught up!</h2>
+          <p className="text-gray-400">No transactions need review.</p>
+        </div>
+      ) : (
+        <TransactionTable 
+          data={queue} 
+          loading={loading} 
+          isQueueView={true} 
+          onAction={handleActionClick} 
+        />
+      )}
+
+      {/* Modal */}
+      <ActionModal
+        isOpen={modalOpen}
+        transactionId={selectedTxn}
+        action={actionType}
+        onClose={() => setModalOpen(false)}
+        onConfirm={handleConfirmAction}
+      />
     </div>
   );
 };
