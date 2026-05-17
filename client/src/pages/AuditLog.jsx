@@ -1,23 +1,44 @@
 import React, { useState, useEffect } from 'react';
-import { History, RefreshCcw, User, ShieldCheck, ShieldAlert, Zap } from 'lucide-react';
+import { useSelector } from 'react-redux';
+import { Navigate } from 'react-router-dom';
+import { History, RefreshCcw, User, ShieldCheck, ShieldAlert, Zap, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { auditAPI } from '../services/api';
-import Skeleton from '../components/common/Skeleton';
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
+import { getAuditLogs } from '../services/auditService';
+import LoadingSkeleton from '../components/common/LoadingSkeleton';
 import EmptyState from '../components/common/EmptyState';
 
 const AuditLog = () => {
+  const { user } = useSelector((state) => state.auth);
+
+  if (user?.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState([]);
+  const [filters, setFilters] = useState({
+    analystName: '',
+    action: '',
+    startDate: null,
+    endDate: null
+  });
 
   const fetchLogs = async () => {
     try {
       setLoading(true);
-      const response = await auditAPI.get('/');
-      // notification service returns array directly or { success, logs }
-      // looking at the controller, it returns logs directly
-      setLogs(Array.isArray(response.data) ? response.data : []);
+      const queryParams = {};
+      if (filters.analystName) queryParams.analystName = filters.analystName;
+      if (filters.action) queryParams.action = filters.action;
+      if (filters.startDate) queryParams.startDate = filters.startDate.toISOString();
+      if (filters.endDate) queryParams.endDate = filters.endDate.toISOString();
+
+      const data = await getAuditLogs(queryParams);
+      setLogs(Array.isArray(data) ? data : (data.logs || []));
     } catch (err) {
       toast.error('Failed to load audit logs');
+      setLogs([]);
     } finally {
       setLoading(false);
     }
@@ -25,12 +46,39 @@ const AuditLog = () => {
 
   useEffect(() => {
     fetchLogs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const getActionIcon = (action) => {
-    if (action.includes('Approved')) return <ShieldCheck className="w-4 h-4 text-emerald-500" />;
-    if (action.includes('Rejected')) return <ShieldAlert className="w-4 h-4 text-red-500" />;
-    return <Zap className="w-4 h-4 text-blue-500" />;
+  const handleApplyFilters = () => {
+    fetchLogs();
+  };
+
+  const handleResetFilters = () => {
+    setFilters({
+      analystName: '',
+      action: '',
+      startDate: null,
+      endDate: null
+    });
+    // Need a timeout to allow state to update before fetch if we don't use useEffect
+    setTimeout(() => {
+      fetchLogs();
+    }, 0);
+  };
+
+  const getActionStyles = (action) => {
+    switch (action?.toLowerCase()) {
+      case 'approved':
+        return { color: '#22C55E', icon: <ShieldCheck className="w-4 h-4 mr-2" /> };
+      case 'rejected':
+        return { color: '#EF4444', icon: <ShieldAlert className="w-4 h-4 mr-2" /> };
+      case 'escalated':
+        return { color: '#F59E0B', icon: <AlertTriangle className="w-4 h-4 mr-2" /> };
+      case 'auto-flagged':
+        return { color: '#3B82F6', icon: <Zap className="w-4 h-4 mr-2" /> };
+      default:
+        return { color: '#94A3B8', icon: <ShieldCheck className="w-4 h-4 mr-2" /> };
+    }
   };
 
   return (
@@ -48,6 +96,67 @@ const AuditLog = () => {
         </button>
       </div>
 
+      <div className="bg-[#1A1D27] p-4 rounded-xl border border-[#2A2D3E] flex flex-wrap gap-4 items-end">
+        <div className="flex-1 min-w-[200px]">
+          <label className="block text-xs font-medium text-[#94A3B8] mb-1">Analyst Name</label>
+          <input
+            type="text"
+            className="w-full bg-[#0F1117] border border-[#2A2D3E] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]"
+            placeholder="Search by name..."
+            value={filters.analystName}
+            onChange={(e) => setFilters({ ...filters, analystName: e.target.value })}
+          />
+        </div>
+        <div className="flex-1 min-w-[150px]">
+          <label className="block text-xs font-medium text-[#94A3B8] mb-1">Action</label>
+          <select
+            className="w-full bg-[#0F1117] border border-[#2A2D3E] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]"
+            value={filters.action}
+            onChange={(e) => setFilters({ ...filters, action: e.target.value })}
+          >
+            <option value="">All Actions</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="escalated">Escalated</option>
+            <option value="auto-flagged">Auto-Flagged</option>
+          </select>
+        </div>
+        <div className="flex-1 min-w-[150px]">
+          <label className="block text-xs font-medium text-[#94A3B8] mb-1">From Date</label>
+          <DatePicker
+            selected={filters.startDate}
+            onChange={(date) => setFilters({ ...filters, startDate: date })}
+            className="w-full bg-[#0F1117] border border-[#2A2D3E] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]"
+            placeholderText="Start Date"
+            isClearable
+          />
+        </div>
+        <div className="flex-1 min-w-[150px]">
+          <label className="block text-xs font-medium text-[#94A3B8] mb-1">To Date</label>
+          <DatePicker
+            selected={filters.endDate}
+            onChange={(date) => setFilters({ ...filters, endDate: date })}
+            className="w-full bg-[#0F1117] border border-[#2A2D3E] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]"
+            placeholderText="End Date"
+            isClearable
+          />
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={handleApplyFilters}
+            className="px-4 py-2 bg-[#3B82F6] hover:bg-[#2563EB] text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            Apply
+          </button>
+          <button
+            onClick={handleResetFilters}
+            className="px-4 py-2 bg-[#2A2D3E] hover:bg-[#3B4054] text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+
       <div className="bg-[#11131C] border border-[#2A2D3E] rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -55,20 +164,18 @@ const AuditLog = () => {
               <tr className="bg-[#1A1D27] border-b border-[#2A2D3E]">
                 <th className="px-6 py-4 text-xs font-bold text-[#4B5563] uppercase tracking-wider">Timestamp</th>
                 <th className="px-6 py-4 text-xs font-bold text-[#4B5563] uppercase tracking-wider">Analyst</th>
+                <th className="px-6 py-4 text-xs font-bold text-[#4B5563] uppercase tracking-wider">Transaction ID</th>
                 <th className="px-6 py-4 text-xs font-bold text-[#4B5563] uppercase tracking-wider">Action</th>
-                <th className="px-6 py-4 text-xs font-bold text-[#4B5563] uppercase tracking-wider">Transaction</th>
-                <th className="px-6 py-4 text-xs font-bold text-[#4B5563] uppercase tracking-wider">Message</th>
+                <th className="px-6 py-4 text-xs font-bold text-[#4B5563] uppercase tracking-wider">Note</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#2A2D3E]">
               {loading ? (
-                Array(10).fill(0).map((_, i) => (
-                  <tr key={i} className="animate-pulse">
-                    <td className="px-6 py-4"><Skeleton className="h-4 w-32" /></td>
-                    <td className="px-6 py-4"><Skeleton className="h-4 w-24" /></td>
-                    <td className="px-6 py-4"><Skeleton className="h-4 w-28" /></td>
-                    <td className="px-6 py-4"><Skeleton className="h-4 w-20" /></td>
-                    <td className="px-6 py-4"><Skeleton className="h-4 w-48" /></td>
+                Array(5).fill(0).map((_, i) => (
+                  <tr key={i}>
+                    <td colSpan="5" className="px-6 py-4">
+                      <LoadingSkeleton rows={1} />
+                    </td>
                   </tr>
                 ))
               ) : logs.length === 0 ? (
@@ -82,36 +189,39 @@ const AuditLog = () => {
                   </td>
                 </tr>
               ) : (
-                logs.map((log) => (
-                  <tr 
-                    key={log._id}
-                    className="hover:bg-[#1A1D27] transition-colors"
-                  >
-                    <td className="px-6 py-4 text-sm text-[#94A3B8]">
-                      {new Date(log.timestamp).toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center space-x-2">
-                        <User className="w-4 h-4 text-[#4B5563]" />
-                        <span className="text-sm text-white font-medium">{log.analystName}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center space-x-2">
-                        {getActionIcon(log.action)}
-                        <span className="text-xs font-bold uppercase tracking-wider text-white">
-                          {log.action}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 font-mono text-xs text-[#3B82F6]">
-                      {log.transactionId}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-[#94A3B8]">
-                      {log.message}
-                    </td>
-                  </tr>
-                ))
+                logs.map((log) => {
+                  const actionStyle = getActionStyles(log.action);
+                  return (
+                    <tr 
+                      key={log._id}
+                      className="hover:bg-[#1A1D27] transition-colors"
+                    >
+                      <td className="px-6 py-4 text-sm text-[#94A3B8]">
+                        {new Date(log.timestamp).toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center space-x-2">
+                          <User className="w-4 h-4 text-[#4B5563]" />
+                          <span className="text-sm text-white font-medium">{log.analystName || 'System'}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 font-mono text-xs text-[#3B82F6]">
+                        {log.transactionId}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center" style={{ color: actionStyle.color }}>
+                          {actionStyle.icon}
+                          <span className="text-xs font-bold uppercase tracking-wider">
+                            {log.action}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-[#94A3B8] max-w-xs truncate" title={log.note || log.message}>
+                        {log.note || log.message || '-'}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
