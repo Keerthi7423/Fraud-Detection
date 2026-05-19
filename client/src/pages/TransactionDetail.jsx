@@ -11,7 +11,8 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  ExternalLink
+  ExternalLink,
+  Loader2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import transactionService from '../services/transactionService';
@@ -276,26 +277,38 @@ const TransactionDetail = () => {
                   <button
                     onClick={() => handleAction('approved')}
                     disabled={actionLoading}
-                    className="w-full flex items-center justify-center space-x-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-emerald-500/20"
+                    className="w-full flex items-center justify-center space-x-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <CheckCircle2 className="w-5 h-5" />
-                    <span>Approve (Mark Clean)</span>
+                    {actionLoading ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="w-5 h-5" />
+                    )}
+                    <span>{actionLoading ? 'Processing...' : 'Approve (Mark Clean)'}</span>
                   </button>
                   <button
                     onClick={() => handleAction('rejected')}
                     disabled={actionLoading}
-                    className="w-full flex items-center justify-center space-x-2 bg-red-500 hover:bg-red-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-red-500/20"
+                    className="w-full flex items-center justify-center space-x-2 bg-red-500 hover:bg-red-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <XCircle className="w-5 h-5" />
-                    <span>Reject (Confirm Fraud)</span>
+                    {actionLoading ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <XCircle className="w-5 h-5" />
+                    )}
+                    <span>{actionLoading ? 'Processing...' : 'Reject (Confirm Fraud)'}</span>
                   </button>
                   <button
                     onClick={() => handleAction('escalated')}
                     disabled={actionLoading}
-                    className="w-full flex items-center justify-center space-x-2 bg-amber-500 hover:bg-amber-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-amber-500/20"
+                    className="w-full flex items-center justify-center space-x-2 bg-amber-500 hover:bg-amber-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Activity className="w-5 h-5" />
-                    <span>Escalate for L2 Review</span>
+                    {actionLoading ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Activity className="w-5 h-5" />
+                    )}
+                    <span>{actionLoading ? 'Processing...' : 'Escalate for L2 Review'}</span>
                   </button>
                 </div>
               ) : (

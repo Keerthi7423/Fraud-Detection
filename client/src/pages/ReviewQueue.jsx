@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, RefreshCcw } from 'lucide-react';
+import { RefreshCw, AlertTriangle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import TransactionTable from '../components/transactions/TransactionTable';
 import ActionModal from '../components/transactions/ActionModal';
 import { transactionAPI } from '../services/api';
+import ErrorState from '../components/common/ErrorState';
+import EmptyState from '../components/common/EmptyState';
 
 const ReviewQueue = () => {
   const [queue, setQueue] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
   
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTxn, setSelectedTxn] = useState(null);
@@ -18,14 +21,12 @@ const ReviewQueue = () => {
     setLoading(true);
     try {
       const response = await transactionAPI.get('/queue');
-      // Assume response.data returns the array directly based on transactionService, or handles .data.transactions
       const data = response.data.transactions || response.data;
       setQueue(Array.isArray(data) ? data : []);
       setError(null);
     } catch (err) {
       console.error('Failed to fetch queue', err);
-      setError('Failed to load review queue. Please try again.');
-      toast.error('Failed to load review queue');
+      setError('Failed to load review queue. Please check your connection to the Transaction Service.');
     } finally {
       setLoading(false);
     }
@@ -42,17 +43,20 @@ const ReviewQueue = () => {
   };
 
   const handleConfirmAction = async (note) => {
+    setActionLoading(true);
     try {
       await transactionAPI.patch(`/${selectedTxn}`, {
         status: actionType,
         reviewNote: note
       });
-      toast.success(`Transaction ${selectedTxn} ${actionType} successfully`);
+      toast.success(`Transaction ${selectedTxn} marked as ${actionType === 'approved' ? 'clean' : 'fraudulent'} successfully`);
       setModalOpen(false);
       fetchQueue();
     } catch (err) {
       console.error(`Failed to ${actionType} transaction`, err);
-      toast.error(err.response?.data?.error || `Failed to ${actionType} transaction`);
+      toast.error(err.response?.data?.message || `Failed to ${actionType} transaction`);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -73,29 +77,19 @@ const ReviewQueue = () => {
           onClick={fetchQueue}
           className="p-2 bg-[#1A1D27] border border-[#2A2D3E] rounded-lg text-[#94A3B8] hover:text-white transition-all flex items-center"
         >
-          <RefreshCcw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
 
       {/* Content */}
       {error ? (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-8 text-center">
-          <p className="text-red-400 mb-4">{error}</p>
-          <button 
-            onClick={fetchQueue}
-            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium"
-          >
-            Retry
-          </button>
-        </div>
+        <ErrorState message={error} onRetry={fetchQueue} />
       ) : queue.length === 0 && !loading ? (
-        <div className="bg-[#11131C] border border-[#2A2D3E] rounded-xl p-16 flex flex-col items-center justify-center text-center">
-          <div className="bg-green-500/10 text-green-500 p-4 rounded-full mb-4">
-            <CheckCircle size={48} />
-          </div>
-          <h2 className="text-xl font-bold text-white mb-2">All caught up!</h2>
-          <p className="text-gray-400">No transactions need review.</p>
-        </div>
+        <EmptyState 
+          title="All caught up!" 
+          description="No transactions need review. There are currently no pending or suspicious events requiring manual review." 
+          icon={AlertTriangle}
+        />
       ) : (
         <TransactionTable 
           data={queue} 
@@ -112,6 +106,7 @@ const ReviewQueue = () => {
         action={actionType}
         onClose={() => setModalOpen(false)}
         onConfirm={handleConfirmAction}
+        loading={actionLoading}
       />
     </div>
   );

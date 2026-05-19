@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, AlertCircle } from 'lucide-react';
+import { X, AlertCircle, RefreshCw } from 'lucide-react';
 
-const ActionModal = ({ isOpen, transactionId, action, onClose, onConfirm }) => {
+const ActionModal = ({ isOpen, transactionId, action, onClose, onConfirm, loading }) => {
   const [note, setNote] = useState('');
 
   useEffect(() => {
@@ -12,7 +12,7 @@ const ActionModal = ({ isOpen, transactionId, action, onClose, onConfirm }) => {
 
   if (!isOpen) return null;
 
-  const isConfirmDisabled = note.trim().length < 10;
+  const isConfirmDisabled = note.trim().length < 10 || loading;
   
   const handleConfirm = () => {
     if (!isConfirmDisabled) {
@@ -40,7 +40,8 @@ const ActionModal = ({ isOpen, transactionId, action, onClose, onConfirm }) => {
           </h2>
           <button 
             onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors p-1 rounded-md hover:bg-gray-800"
+            disabled={loading}
+            className="text-gray-400 hover:text-white transition-colors p-1 rounded-md hover:bg-gray-800 disabled:opacity-50"
           >
             <X size={20} />
           </button>
@@ -60,8 +61,9 @@ const ActionModal = ({ isOpen, transactionId, action, onClose, onConfirm }) => {
               id="review-note"
               value={note}
               onChange={(e) => setNote(e.target.value)}
+              disabled={loading}
               placeholder="Add a note explaining your decision (minimum 10 characters)..."
-              className="w-full bg-[#11131C] border border-[#2A2D3E] rounded-lg p-3 text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-none h-28 text-sm"
+              className="w-full bg-[#11131C] border border-[#2A2D3E] rounded-lg p-3 text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-none h-28 text-sm disabled:opacity-50"
             />
             <div className="flex justify-between text-xs text-gray-500">
               <span>Required for audit trail</span>
@@ -76,16 +78,18 @@ const ActionModal = ({ isOpen, transactionId, action, onClose, onConfirm }) => {
         <div className="flex justify-end gap-3 p-4 border-t border-[#2A2D3E] bg-[#11131C]/50">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-[#2A2D3E] transition-colors"
+            disabled={loading}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-[#2A2D3E] transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={handleConfirm}
             disabled={isConfirmDisabled}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${buttonColor} disabled:opacity-50 disabled:cursor-not-allowed`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${buttonColor} disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
           >
-            Confirm {actionText}
+            {loading && <RefreshCw size={14} className="animate-spin" />}
+            <span>{loading ? 'Processing...' : `Confirm ${actionText}`}</span>
           </button>
         </div>
       </div>

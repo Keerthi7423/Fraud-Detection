@@ -8,6 +8,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { getAuditLogs } from '../services/auditService';
 import LoadingSkeleton from '../components/common/LoadingSkeleton';
 import EmptyState from '../components/common/EmptyState';
+import ErrorState from '../components/common/ErrorState';
 
 const AuditLog = () => {
   const { user } = useSelector((state) => state.auth);
@@ -17,6 +18,7 @@ const AuditLog = () => {
   }
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [logs, setLogs] = useState([]);
   const [filters, setFilters] = useState({
     analystName: '',
@@ -28,6 +30,7 @@ const AuditLog = () => {
   const fetchLogs = async () => {
     try {
       setLoading(true);
+      setError(null);
       const queryParams = {};
       if (filters.analystName) queryParams.analystName = filters.analystName;
       if (filters.action) queryParams.action = filters.action;
@@ -37,6 +40,8 @@ const AuditLog = () => {
       const data = await getAuditLogs(queryParams);
       setLogs(Array.isArray(data) ? data : (data.logs || []));
     } catch (err) {
+      console.error(err);
+      setError('Failed to load audit logs. Please check your connection to the Notification Service.');
       toast.error('Failed to load audit logs');
       setLogs([]);
     } finally {
@@ -158,74 +163,80 @@ const AuditLog = () => {
       </div>
 
       <div className="bg-[#11131C] border border-[#2A2D3E] rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-[#1A1D27] border-b border-[#2A2D3E]">
-                <th className="px-6 py-4 text-xs font-bold text-[#4B5563] uppercase tracking-wider">Timestamp</th>
-                <th className="px-6 py-4 text-xs font-bold text-[#4B5563] uppercase tracking-wider">Analyst</th>
-                <th className="px-6 py-4 text-xs font-bold text-[#4B5563] uppercase tracking-wider">Transaction ID</th>
-                <th className="px-6 py-4 text-xs font-bold text-[#4B5563] uppercase tracking-wider">Action</th>
-                <th className="px-6 py-4 text-xs font-bold text-[#4B5563] uppercase tracking-wider">Note</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#2A2D3E]">
-              {loading ? (
-                Array(5).fill(0).map((_, i) => (
-                  <tr key={i}>
-                    <td colSpan="5" className="px-6 py-4">
-                      <LoadingSkeleton rows={1} />
-                    </td>
-                  </tr>
-                ))
-              ) : logs.length === 0 ? (
-                <tr>
-                  <td colSpan="5" className="p-8">
-                    <EmptyState 
-                      title="No logs recorded" 
-                      description="Action logs will appear here once analysts start reviewing transactions." 
-                      icon={History}
-                    />
-                  </td>
+        {error ? (
+          <div className="p-8">
+            <ErrorState message={error} onRetry={fetchLogs} />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[#1A1D27] border-b border-[#2A2D3E]">
+                  <th className="px-6 py-4 text-xs font-bold text-[#4B5563] uppercase tracking-wider">Timestamp</th>
+                  <th className="px-6 py-4 text-xs font-bold text-[#4B5563] uppercase tracking-wider">Analyst</th>
+                  <th className="px-6 py-4 text-xs font-bold text-[#4B5563] uppercase tracking-wider">Transaction ID</th>
+                  <th className="px-6 py-4 text-xs font-bold text-[#4B5563] uppercase tracking-wider">Action</th>
+                  <th className="px-6 py-4 text-xs font-bold text-[#4B5563] uppercase tracking-wider">Note</th>
                 </tr>
-              ) : (
-                logs.map((log) => {
-                  const actionStyle = getActionStyles(log.action);
-                  return (
-                    <tr 
-                      key={log._id}
-                      className="hover:bg-[#1A1D27] transition-colors"
-                    >
-                      <td className="px-6 py-4 text-sm text-[#94A3B8]">
-                        {new Date(log.timestamp).toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center space-x-2">
-                          <User className="w-4 h-4 text-[#4B5563]" />
-                          <span className="text-sm text-white font-medium">{log.analystName || 'System'}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 font-mono text-xs text-[#3B82F6]">
-                        {log.transactionId}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center" style={{ color: actionStyle.color }}>
-                          {actionStyle.icon}
-                          <span className="text-xs font-bold uppercase tracking-wider">
-                            {log.action}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-[#94A3B8] max-w-xs truncate" title={log.note || log.message}>
-                        {log.note || log.message || '-'}
+              </thead>
+              <tbody className="divide-y divide-[#2A2D3E]">
+                {loading ? (
+                  Array(5).fill(0).map((_, i) => (
+                    <tr key={i}>
+                      <td colSpan="5" className="px-6 py-4">
+                        <LoadingSkeleton rows={1} />
                       </td>
                     </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                  ))
+                ) : logs.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="p-8">
+                      <EmptyState 
+                        title="No logs recorded" 
+                        description="Action logs will appear here once analysts start reviewing transactions." 
+                        icon={History}
+                      />
+                    </td>
+                  </tr>
+                ) : (
+                  logs.map((log) => {
+                    const actionStyle = getActionStyles(log.action);
+                    return (
+                      <tr 
+                        key={log._id}
+                        className="hover:bg-[#1A1D27] transition-colors"
+                      >
+                        <td className="px-6 py-4 text-sm text-[#94A3B8]">
+                          {new Date(log.timestamp).toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center space-x-2">
+                            <User className="w-4 h-4 text-[#4B5563]" />
+                            <span className="text-sm text-white font-medium">{log.analystName || 'System'}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 font-mono text-xs text-[#3B82F6]">
+                          {log.transactionId}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center" style={{ color: actionStyle.color }}>
+                            {actionStyle.icon}
+                            <span className="text-xs font-bold uppercase tracking-wider">
+                              {log.action}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-[#94A3B8] max-w-xs truncate" title={log.note || log.message}>
+                          {log.note || log.message || '-'}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
