@@ -185,7 +185,14 @@ const TransactionTable = ({ data = [], loading, isQueueView, onAction }) => {
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <th key={header.id} className="px-6 py-4 font-semibold border-b border-[#2A2D3E]">
+                  <th 
+                    key={header.id} 
+                    className={`px-6 py-4 font-semibold border-b border-[#2A2D3E] ${
+                      header.column.id === 'location_city' || header.column.id === 'location.city' || header.column.id === 'merchantCategory' 
+                        ? 'hidden md:table-cell' 
+                        : ''
+                    }`}
+                  >
                     {header.isPlaceholder
                       ? null
                       : flexRender(header.column.columnDef.header, header.getContext())}
@@ -205,7 +212,14 @@ const TransactionTable = ({ data = [], loading, isQueueView, onAction }) => {
                   }`}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-6 py-4 text-sm text-gray-300">
+                    <td 
+                      key={cell.id} 
+                      className={`px-6 py-4 text-sm text-gray-300 ${
+                        cell.column.id === 'location_city' || cell.column.id === 'location.city' || cell.column.id === 'merchantCategory' 
+                          ? 'hidden md:table-cell' 
+                          : ''
+                      }`}
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}

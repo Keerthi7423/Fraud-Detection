@@ -111,8 +111,8 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Stats Grid - Responsive 1 to 4 cols */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Stats Grid - Responsive 2x2 on mobile, 4 on desktop */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
         {loading && !stats.total ? (
           Array(4).fill(0).map((_, i) => <CardSkeleton key={i} />)
         ) : (

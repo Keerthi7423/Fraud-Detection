@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { Shield, Loader2 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { authAPI } from '../services/api';
 import { setCredentials, setLoading, setError } from '../store/slices/authSlice';
 
@@ -19,9 +20,12 @@ const Login = () => {
       const response = await authAPI.post('/login', { email, password });
       const { user, token } = response.data;
       dispatch(setCredentials({ user, token }));
+      toast.success(`Welcome back, ${user.name}!`);
       navigate('/');
     } catch (err) {
-      dispatch(setError(err.response?.data?.message || 'Login failed. Please check your credentials.'));
+      const errMsg = err.response?.data?.message || 'Login failed. Please check your credentials.';
+      dispatch(setError(errMsg));
+      toast.error(errMsg);
     }
   };
 
