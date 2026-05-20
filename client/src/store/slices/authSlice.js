@@ -5,6 +5,7 @@ const initialState = {
   token: localStorage.getItem('token') || null,
   isLoading: false,
   error: null,
+  queueCount: 0,
 };
 
 const authSlice = createSlice({
@@ -22,6 +23,7 @@ const authSlice = createSlice({
     logout: (state) => {
       state.user = null;
       state.token = null;
+      state.queueCount = 0;
       localStorage.removeItem('user');
       localStorage.removeItem('token');
     },
@@ -32,10 +34,13 @@ const authSlice = createSlice({
       state.error = action.payload;
       state.isLoading = false;
     },
+    setQueueCount: (state, action) => {
+      state.queueCount = action.payload;
+    },
   },
 });
 
-export const { setCredentials, logout, setLoading, setError } = authSlice.actions;
+export const { setCredentials, logout, setLoading, setError, setQueueCount } = authSlice.actions;
 
 export default authSlice.reducer;
 
