@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -11,17 +11,33 @@ import {
   X
 } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
-import { logout } from '../../store/slices/authSlice';
+import { logout, setQueueCount } from '../../store/slices/authSlice';
+import transactionService from '../../services/transactionService';
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { user } = useSelector((state) => state.auth);
+  const { user, queueCount } = useSelector((state) => state.auth);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchQueueCount = async () => {
+      try {
+        const data = await transactionService.getQueue();
+        dispatch(setQueueCount(data.count || 0));
+      } catch (err) {
+        console.error('Failed to fetch queue count', err);
+      }
+    };
+    fetchQueueCount();
+    const interval = setInterval(fetchQueueCount, 30000);
+    return () => clearInterval(interval);
+  }, [dispatch, user]);
 
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Transactions', path: '/transactions', icon: ArrowLeftRight },
-    { name: 'Review Queue', path: '/queue', icon: AlertTriangle, badge: 5 },
+    { name: 'Review Queue', path: '/queue', icon: AlertTriangle, badge: queueCount },
     { name: 'Audit Log', path: '/audit', icon: ClipboardList },
   ];
 

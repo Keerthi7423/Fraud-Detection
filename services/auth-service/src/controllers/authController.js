@@ -50,6 +50,14 @@ exports.login = async (req, res, next) => {
       });
     }
 
+    // Check if user is active
+    if (!user.isActive) {
+      return res.status(403).json({
+        success: false,
+        error: 'Your account has been deactivated. Please contact an administrator.',
+      });
+    }
+
     // Check if password matches
     const isMatch = await user.matchPassword(password);
 
@@ -113,4 +121,50 @@ const sendTokenResponse = (user, statusCode, res) => {
       role: user.role,
     },
   });
+};
+
+// @desc    Get all users
+// @route   GET /auth/users
+// @access  Private/Admin
+exports.getUsers = async (req, res, next) => {
+  try {
+    const users = await User.find({}).select('-password');
+    res.status(200).json({
+      success: true,
+      data: users,
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      error: err.message,
+    });
+  }
+};
+
+// @desc    Toggle user active status
+// @route   PATCH /auth/users/:id/toggle
+// @access  Private/Admin
+exports.toggleUserStatus = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found',
+      });
+    }
+
+    user.isActive = !user.isActive;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      data: user,
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      error: err.message,
+    });
+  }
 };
