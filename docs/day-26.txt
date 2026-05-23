@@ -1,0 +1,73 @@
+DAY 26: AWS ECR - PUSH ALL 4 SERVICE IMAGES
+
+OVERVIEW:
+Day 26 marks the beginning of Phase 3 (AWS Deployment). The goal today is to take our containerized microservices (Auth, Transaction, AI Scoring, and Notification) and push those Docker images to Amazon Elastic Container Registry (ECR). ECR is a fully managed container registry that makes it easy to store, manage, share, and deploy container images and artifacts anywhere.
+
+WHY ARE WE DOING THIS?
+Before we can run our microservices on AWS Elastic Container Service (ECS) using Fargate (which we will do in subsequent days), AWS needs a place to pull the Docker images from. AWS ECR acts exactly like Docker Hub, but it is private and deeply integrated with AWS IAM (Identity and Access Management) and ECS, making enterprise deployments secure and fast.
+
+-------------------------------------------------------------------
+STEP-BY-STEP IMPLEMENTATION & EXPLANATION
+-------------------------------------------------------------------
+
+STEP 1: Create 4 Repositories in AWS ECR
+Action: Go to the AWS Management Console, search for "ECR" (Elastic Container Registry), and create four private repositories with these exact names:
+1. fraudguard/auth-service
+2. fraudguard/transaction-service
+3. fraudguard/ai-scoring-service
+4. fraudguard/notification-service
+
+Explanation for Interviews:
+- What is a repository in ECR? A repository stores multiple versions (tags) of a specific Docker image. We create one repository per microservice to keep our images organized and version-controlled.
+
+STEP 2: Authenticate Docker with your AWS Account
+Action: Run the following command in your terminal (replace `YOUR_ACCOUNT_ID` with your actual 12-digit AWS account ID and `ap-south-1` with your AWS region):
+
+aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin YOUR_ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com
+
+Explanation for Interviews:
+- How does AWS CLI authenticate Docker? The command `aws ecr get-login-password` requests an authentication token using your AWS IAM credentials. We then pipe (`|`) this token to the `docker login` command, passing the token via standard input (`--password-stdin`). This securely logs your local Docker daemon into your private ECR registry so you can push and pull images.
+
+STEP 3: Build, Tag, and Push the Auth Service Image
+Action: 
+// 1. Build the image locally
+docker build -t fraudguard/auth-service ./services/auth-service
+
+// 2. Tag the image with the ECR repository URI
+docker tag fraudguard/auth-service:latest YOUR_ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/fraudguard/auth-service:latest
+
+// 3. Push the image to ECR
+docker push YOUR_ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/fraudguard/auth-service:latest
+
+Explanation for Interviews:
+- What does `docker build` do? It reads the `Dockerfile` in the `./services/auth-service` directory and packages our Node.js app, its dependencies, and the runtime environment into a standalone container image.
+- What does `docker tag` do? By default, the image is named `fraudguard/auth-service` locally. To push it to a specific remote registry (like ECR), Docker requires the image name to include the registry's URL. Tagging creates an alias that points to the local image but has the required ECR naming format.
+- What does `docker push` do? It uploads the image layers from your local machine to AWS ECR. Docker is smart enough to only upload layers that don't already exist in the registry, saving bandwidth and time.
+
+STEP 4: Repeat for the Remaining Services
+Action: Repeat the Build, Tag, and Push commands for the remaining three services (just change the paths and image names accordingly):
+- transaction-service (path: ./services/transaction-service)
+- ai-scoring-service (path: ./services/ai-scoring-service)
+- notification-service (path: ./services/notification-service)
+
+STEP 5: Verify
+Action: Go back to the AWS ECR Console. Click on each repository and verify that an image with the tag `latest` appears inside. 
+
+-------------------------------------------------------------------
+INTERVIEW PREPARATION: COMMON QUESTIONS FOR DAY 26
+-------------------------------------------------------------------
+
+Q: What is the difference between Docker Hub and AWS ECR?
+A: Both are container registries. Docker Hub is widely used for public images and general use. AWS ECR is a private registry provided by AWS. We use ECR for enterprise projects because it integrates perfectly with AWS IAM (for tight security and access control) and ECS/EKS (for deployment), ensuring our proprietary code remains secure within our AWS environment.
+
+Q: What happens if you push a new image with the 'latest' tag?
+A: In ECR, if you push a new image with the same tag (like 'latest'), the tag is moved to the new image, and the old image becomes "untagged". In a production CI/CD pipeline, it is best practice to tag images with the Git commit hash (e.g., `fraudguard/auth-service:a1b2c3d`) rather than just `latest` so you can easily roll back to a specific version.
+
+Q: How does `docker build` know what to include in the image?
+A: It follows the instructions in the `Dockerfile`. We start with a base image (like `node:18-alpine`), copy the `package.json`, run `npm install`, copy the rest of the source code, and finally specify the command to run the application (e.g., `npm start`).
+
+Q: Why do we containerize our microservices before deploying to AWS?
+A: Containerization ensures consistency across environments. An image that works on your local laptop will run exactly the same way on AWS. It packages the code, runtime, system tools, and libraries together, eliminating the "it works on my machine" problem.
+
+Q: Can you explain the AWS ECR authentication command?
+A: Yes, `aws ecr get-login-password` securely retrieves a temporary authentication token valid for 12 hours. We pipe this token directly into `docker login` so that Docker knows it has the authorization to push images to our private ECR repositories.
