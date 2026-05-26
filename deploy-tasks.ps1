@@ -3,12 +3,21 @@ $region = "eu-north-1"
 $executionRoleArn = "arn:aws:iam::${accountId}:role/ecsTaskExecutionRole"
 $secretArn = "arn:aws:secretsmanager:${region}:${accountId}:secret:fraudguard-secrets-ELoVen"
 
-function CreateTaskDefinition($familyName, $serviceName, $port, $extraSecrets) {
+function CreateTaskDefinition($familyName, $serviceName, $port, $extraEnv, $extraSecrets) {
     $secrets = @(
         @{ name = "MONGO_URI"; valueFrom = "${secretArn}:MONGO_URI::" }
     )
     if ($extraSecrets) {
         $secrets += $extraSecrets
+    }
+    
+    $environment = @(
+        @{ name = "PORT"; value = $port.ToString() }
+        @{ name = "AWS_REGION"; value = $region }
+        @{ name = "NODE_ENV"; value = "production" }
+    )
+    if ($extraEnv) {
+        $environment += $extraEnv
     }
     
     $jsonObj = @{
@@ -18,6 +27,7 @@ function CreateTaskDefinition($familyName, $serviceName, $port, $extraSecrets) {
         cpu = "256"
         memory = "512"
         executionRoleArn = $executionRoleArn
+        taskRoleArn = $executionRoleArn
         containerDefinitions = @(
             @{
                 name = $serviceName
@@ -29,10 +39,17 @@ function CreateTaskDefinition($familyName, $serviceName, $port, $extraSecrets) {
                     }
                 )
                 essential = $true
-                environment = @(
-                    @{ name = "PORT"; value = $port.ToString() }
-                )
+                environment = $environment
                 secrets = $secrets
+                logConfiguration = @{
+                    logDriver = "awslogs"
+                    options = @{
+                        "awslogs-create-group" = "true"
+                        "awslogs-group" = "/ecs/$familyName"
+                        "awslogs-region" = $region
+                        "awslogs-stream-prefix" = "ecs"
+                    }
+                }
             }
         )
     }
@@ -46,6 +63,40 @@ function CreateTaskDefinition($familyName, $serviceName, $port, $extraSecrets) {
     Write-Host "Successfully registered $familyName"
 }
 
-CreateTaskDefinition "fraudguard-transaction-task" "transaction-service" 3002 $null
-CreateTaskDefinition "fraudguard-scoring-task" "ai-scoring-service" 3003 @(@{ name="GEMINI_API_KEY"; valueFrom="${secretArn}:GEMINI_API_KEY::"})
-CreateTaskDefinition "fraudguard-notification-task" "notification-service" 3004 $null
+# Transaction Service
+$txnEnv = @(
+    @{ name = "SQS_SCORING_QUEUE_URL"; value = "https://sqs.${region}.amazonaws.com/${accountId}/transaction-scoring-queue" }
+    @{ name = "RAZORPAY_KEY_ID"; value = "rzp_test_Spv9YpkxAUa8nm" }
+    @{ name = "RAZORPAY_KEY_SECRET"; value = "W8VZuD8MUDfgCtIRg8ibWIC7" }
+    @{ name = "RAZORPAY_WEBHOOK_SECRET"; value = "fraud_guard_secret" }
+)
+$txnSecrets = @(
+    @{ name = "JWT_SECRET"; valueFrom = "${secretArn}:JWT_SECRET::" }
+)
+CreateTaskDefinition "fraudguard-transaction-task" "transaction-service" 3002 $txnEnv $txnSecrets
+
+# AI Scoring Service
+$scoringEnv = @(
+    @{ name = "SQS_SCORING_QUEUE_URL"; value = "https://sqs.${region}.amazonaws.com/${accountId}/transaction-scoring-queue" }
+    @{ name = "SQS_NOTIFICATION_QUEUE_URL"; value = "https://sqs.${region}.amazonaws.com/${accountId}/transaction-notification-queue" }
+)
+$scoringSecrets = @(
+    @{ name = "GEMINI_API_KEY"; valueFrom="${secretArn}:GEMINI_API_KEY::"}
+    @{ name = "JWT_SECRET"; valueFrom = "${secretArn}:JWT_SECRET::" }
+)
+CreateTaskDefinition "fraudguard-scoring-task" "ai-scoring-service" 3003 $scoringEnv $scoringSecrets
+
+# Notification Service
+$notifEnv = @(
+    @{ name = "SQS_NOTIFICATION_QUEUE_URL"; value = "https://sqs.${region}.amazonaws.com/${accountId}/transaction-notification-queue" }
+)
+$notifSecrets = @(
+    @{ name = "JWT_SECRET"; valueFrom = "${secretArn}:JWT_SECRET::" }
+)
+CreateTaskDefinition "fraudguard-notification-task" "notification-service" 3004 $notifEnv $notifSecrets
+
+# Auth Service
+$authSecrets = @(
+    @{ name = "JWT_SECRET"; valueFrom = "${secretArn}:JWT_SECRET::" }
+)
+CreateTaskDefinition "fraudguard-auth-task" "auth-service" 3001 $null $authSecrets
