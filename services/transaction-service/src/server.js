@@ -20,7 +20,7 @@ const app = express();
 app.post('/transactions/webhook', express.raw({ type: 'application/json' }), webhookController.handleWebhook);
 
 // 2. GLOBAL MIDDLEWARE
-app.use(cors());
+app.use(cors({ origin: ['http://localhost:5173', 'https://xxxxxx.cloudfront.net'] }));
 app.use(express.json());
 app.use(morgan('dev'));
 app.use(helmet());
