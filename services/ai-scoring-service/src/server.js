@@ -30,3 +30,5 @@ connectDB().then(() => {
     console.log(`AI Scoring Service running on port ${PORT}`);
   });
 });
+
+// Trigger deploy

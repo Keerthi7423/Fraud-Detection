@@ -60,3 +60,5 @@ process.on('unhandledRejection', (err, promise) => {
   // Close server & exit process
   // server.close(() => process.exit(1));
 });
+
+// Trigger deploy
