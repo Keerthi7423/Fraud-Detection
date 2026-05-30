@@ -2,7 +2,7 @@
 
 A high-performance fraud detection system built with a microservices architecture, AWS integration, and real-time AI-powered scoring.
 
-**Live Demo:** [https://xxxxxx.cloudfront.net](https://xxxxxx.cloudfront.net)
+**Live Demo:** [https://d49m8z8w0jzwy.cloudfront.net](https://d49m8z8w0jzwy.cloudfront.net)
 
 ## Architecture
 
