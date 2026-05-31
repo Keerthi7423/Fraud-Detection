@@ -58,18 +58,53 @@ exports.login = async (req, res, next) => {
       });
     }
 
+    // Check if user is temporarily locked (from reset attempts)
+    if (user.otpLockUntil && user.otpLockUntil > Date.now()) {
+      const remainingTime = Math.ceil((user.otpLockUntil - Date.now()) / 1000 / 60);
+      return res.status(403).json({
+        success: false,
+        error: `Account temporarily locked due to too many failed reset attempts. Try again in ${remainingTime} minute(s).`,
+      });
+    }
+
+    // Check if user is temporarily locked (from login attempts)
+    if (user.loginLockUntil && user.loginLockUntil > Date.now()) {
+      const remainingTime = Math.ceil((user.loginLockUntil - Date.now()) / 1000 / 60);
+      return res.status(429).json({
+        success: false,
+        error: `Account locked due to too many failed login attempts. Try again in ${remainingTime} minute(s).`,
+        lockUntil: user.loginLockUntil.getTime(),
+      });
+    }
+
     // Check if password matches
     const isMatch = await user.matchPassword(password);
 
     if (!isMatch) {
+      user.loginAttempts += 1;
+      
+      if (user.loginAttempts >= 4) {
+        user.loginLockUntil = Date.now() + 3 * 60 * 1000; // Lock for 3 minutes
+        await user.save({ validateBeforeSave: false });
+        return res.status(429).json({
+          success: false,
+          error: 'Too many failed login attempts. Try again in 3 minute(s).',
+          lockUntil: user.loginLockUntil.getTime(),
+        });
+      }
+
+      await user.save({ validateBeforeSave: false });
+      const remaining = 4 - user.loginAttempts;
       return res.status(401).json({
         success: false,
-        error: 'Invalid credentials',
+        error: `Invalid credentials. ${remaining} attempt(s) remaining.`,
       });
     }
 
     // Update last login
     user.lastLogin = Date.now();
+    user.loginAttempts = 0;
+    user.loginLockUntil = undefined;
     await user.save();
 
     sendTokenResponse(user, 200, res);
@@ -160,6 +195,120 @@ exports.toggleUserStatus = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: user,
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      error: err.message,
+    });
+  }
+};
+
+// @desc    Forgot Password
+// @route   POST /auth/forgot-password
+// @access  Public
+exports.forgotPassword = async (req, res, next) => {
+  try {
+    const user = await User.findOne({ email: req.body.email });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'There is no user with that email',
+      });
+    }
+
+    // Hardcode OTP to '123456' as requested
+    user.resetPasswordOtp = '123456';
+    user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    await user.save({ validateBeforeSave: false });
+
+    res.status(200).json({
+      success: true,
+      message: 'OTP generated successfully',
+      data: '123456' // Just sending it back in data for development/testing convenience
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      error: err.message,
+    });
+  }
+};
+
+// @desc    Reset Password
+// @route   POST /auth/reset-password
+// @access  Public
+exports.resetPassword = async (req, res, next) => {
+  try {
+    const { email, otp, password } = req.body;
+
+    const user = await User.findOne({ email }).select('+password');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found',
+      });
+    }
+
+    // 1. Check if user is locked out
+    if (user.otpLockUntil && user.otpLockUntil > Date.now()) {
+      const remainingTime = Math.ceil((user.otpLockUntil - Date.now()) / 1000 / 60);
+      return res.status(429).json({
+        success: false,
+        error: `Too many failed attempts. Try again in ${remainingTime} minute(s).`,
+        lockUntil: user.otpLockUntil.getTime(),
+      });
+    }
+
+    // 2. Validate OTP and expiration
+    const isValidOtp = user.resetPasswordOtp === otp;
+    const isExpired = !user.resetPasswordExpire || user.resetPasswordExpire < Date.now();
+
+    if (!isValidOtp || isExpired) {
+      user.otpAttempts += 1;
+      
+      if (user.otpAttempts >= 4) {
+        user.otpLockUntil = Date.now() + 3 * 60 * 1000; // Lock for 3 minutes
+        await user.save({ validateBeforeSave: false });
+        return res.status(429).json({
+          success: false,
+          error: 'Too many failed attempts. Try again in 3 minute(s).',
+          lockUntil: user.otpLockUntil.getTime(),
+        });
+      }
+      
+      await user.save({ validateBeforeSave: false });
+      const remaining = 4 - user.otpAttempts;
+      return res.status(400).json({
+        success: false,
+        error: isValidOtp ? 'OTP has expired' : `Invalid OTP. ${remaining} attempt(s) remaining.`,
+      });
+    }
+
+    // 3. Same Password Check
+    const isSamePassword = await user.matchPassword(password);
+    if (isSamePassword) {
+      return res.status(400).json({
+        success: false,
+        error: 'New password cannot be the same as the old password',
+      });
+    }
+
+    // 4. Success: Set new password and reset lock/attempts
+    user.password = password;
+    user.resetPasswordOtp = undefined;
+    user.resetPasswordExpire = undefined;
+    user.otpAttempts = 0;
+    user.otpLockUntil = undefined;
+    
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Password reset successful',
     });
   } catch (err) {
     res.status(400).json({

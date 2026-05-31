@@ -1,20 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Shield, Loader2, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { authAPI } from '../services/api';
-import { setCredentials, setLoading, setError } from '../store/slices/authSlice';
 
-const Login = () => {
-  const [email, setEmail] = useState('');
+const ResetPassword = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  const [email] = useState(location.state?.email || '');
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [lockUntilTime, setLockUntilTime] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
-  const { isLoading, error } = useSelector((state) => state.auth);
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
+  const inputRefs = useRef([]);
 
   useEffect(() => {
     let interval;
@@ -24,7 +26,7 @@ const Login = () => {
         if (remaining <= 0) {
           setTimeLeft(0);
           setLockUntilTime(null);
-          dispatch(setError(null));
+          setError(null);
           clearInterval(interval);
         } else {
           setTimeLeft(remaining);
@@ -32,26 +34,60 @@ const Login = () => {
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [lockUntilTime, dispatch]);
+  }, [lockUntilTime]);
+
+  const handleChange = (index, e) => {
+    const value = e.target.value;
+    if (isNaN(value)) return;
+
+    const newOtp = [...otp];
+    newOtp[index] = value.substring(value.length - 1);
+    setOtp(newOtp);
+
+    // focus next input
+    if (value && index < 5 && inputRefs.current[index + 1]) {
+      inputRefs.current[index + 1].focus();
+    }
+  };
+
+  const handleKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0 && inputRefs.current[index - 1]) {
+      inputRefs.current[index - 1].focus();
+    }
+  };
+
+  // If no email was passed in state, go back to forgot password
+  if (!email) {
+    navigate('/forgot-password');
+    return null;
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    dispatch(setLoading(true));
+    setIsLoading(true);
+    setError(null);
     try {
-      const response = await authAPI.post('/login', { email, password });
-      const { user, token } = response.data;
-      dispatch(setCredentials({ user, token }));
-      toast.success(`Welcome back, ${user.name}!`);
-      navigate('/');
+      const otpString = otp.join('');
+      if (otpString.length < 6) {
+        setError('Please enter the full 6-digit OTP.');
+        setIsLoading(false);
+        return;
+      }
+      await authAPI.post('/reset-password', { email, otp: otpString, password });
+      toast.success('Password reset successfully! You can now login.');
+      navigate('/login');
     } catch (err) {
       const errData = err.response?.data;
-      const errMsg = errData?.error || errData?.message || 'Login failed. Please check your credentials.';
-      dispatch(setError(errMsg));
+      const errMsg = errData?.error || 'Failed to reset password.';
+      setError(errMsg);
+      toast.error(errMsg);
       
       if (err.response?.status === 429 && errData?.lockUntil) {
         setLockUntilTime(errData.lockUntil);
         setTimeLeft(Math.ceil((errData.lockUntil - Date.now()) / 1000));
       }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -75,8 +111,10 @@ const Login = () => {
           <div className="bg-blue-500/10 p-3 rounded-xl mb-4">
             <Shield className="w-10 h-10 text-blue-500" />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">FraudGuard</h1>
-          <p className="text-[#94A3B8] text-sm mt-1 font-medium">Secure. Real-time. Intelligent.</p>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Set New Password</h1>
+          <p className="text-[#94A3B8] text-sm mt-1 font-medium text-center">
+            Enter the OTP (use 123456 for testing) and your new password.
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -85,31 +123,45 @@ const Login = () => {
             <input
               type="email"
               value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                if (error && !isLocked) dispatch(setError(null));
-              }}
-              className="w-full bg-[#0F1117] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              placeholder="admin@fraudguard.ai"
-              disabled={isLocked}
-              required
+              disabled
+              className="w-full bg-[#0F1117] border border-white/10 rounded-lg px-4 py-3 text-white/50 focus:outline-none cursor-not-allowed"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-white/70 mb-2">Password</label>
+            <label className="block text-sm font-medium text-white/70 mb-2">OTP Code</label>
+            <div className="flex gap-2 justify-between">
+              {otp.map((digit, index) => (
+                <input
+                  key={index}
+                  ref={(el) => (inputRefs.current[index] = el)}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleChange(index, e)}
+                  onKeyDown={(e) => handleKeyDown(index, e)}
+                  className="w-12 h-12 text-center bg-[#0F1117] border border-white/10 rounded-lg text-white font-bold text-xl focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  autoComplete="off"
+                  disabled={isLocked}
+                  required
+                />
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-white/70 mb-2">New Password</label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  if (error && !isLocked) dispatch(setError(null));
-                }}
-                className="w-full bg-[#0F1117] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors pr-12 disabled:opacity-50 disabled:cursor-not-allowed"
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-[#0F1117] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed pr-12"
                 placeholder="••••••••"
                 disabled={isLocked}
                 required
+                minLength={6}
               />
               <button
                 type="button"
@@ -119,11 +171,6 @@ const Login = () => {
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
-            </div>
-            <div className="flex justify-end mt-2">
-              <Link to="/forgot-password" className="text-sm text-blue-500 hover:text-blue-400 transition-colors">
-                Forgot password?
-              </Link>
             </div>
           </div>
 
@@ -148,22 +195,16 @@ const Login = () => {
             {isLoading ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                Logging in...
+                Resetting...
               </>
             ) : (
-              'Access Terminal'
+              'Reset Password'
             )}
           </button>
         </form>
-
-        <div className="mt-8 pt-6 border-t border-white/5 text-center">
-          <p className="text-[#94A3B8] text-xs">
-            Internal Analyst Terminal. Unauthorized access is monitored and logged.
-          </p>
-        </div>
       </div>
     </div>
   );
 };
 
-export default Login;
+export default ResetPassword;

@@ -17,6 +17,7 @@ const authSlice = createSlice({
       state.user = user;
       state.token = token;
       state.error = null;
+      state.isLoading = false;
       localStorage.setItem('user', JSON.stringify(user));
       localStorage.setItem('token', token);
     },
@@ -24,6 +25,7 @@ const authSlice = createSlice({
       state.user = null;
       state.token = null;
       state.queueCount = 0;
+      state.isLoading = false;
       localStorage.removeItem('user');
       localStorage.removeItem('token');
     },
