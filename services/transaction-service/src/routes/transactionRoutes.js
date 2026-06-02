@@ -9,7 +9,8 @@ const {
   getFraudTrends,
   getFraudByCategory,
   getFraudByHour,
-  exportTransactions
+  exportTransactions,
+  getMetrics
 } = require('../controllers/transactionController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -21,6 +22,7 @@ router.use(protect);
 router.get('/', getAllTransactions);
 router.get('/export', authorize('admin'), exportTransactions);
 router.get('/queue', getReviewQueue);
+router.get('/metrics', getMetrics);
 router.get('/stats', getDashboardStats);
 router.get('/trends', getFraudTrends);
 router.get('/categories', getFraudByCategory);

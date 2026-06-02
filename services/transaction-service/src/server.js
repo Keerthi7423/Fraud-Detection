@@ -27,6 +27,7 @@ app.use(helmet());
 
 // 3. OTHER ROUTES
 app.post('/transactions/create-order', webhookController.createOrder);
+app.post('/transactions/verify-payment', webhookController.verifyPayment);
 app.use('/transactions', transactionRoutes);
 
 // Dev logging middleware

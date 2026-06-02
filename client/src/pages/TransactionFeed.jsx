@@ -124,10 +124,25 @@ const TransactionFeed = () => {
         name: "FraudGuard Demo",
         description: "Auto-Capture Transaction",
         order_id: order.id,
-        handler: function (response) {
+        handler: async function (response) {
           console.log("Razorpay Payment Success:", response);
-          toast.success('Payment successful! Automatic capture in progress...');
-          setTimeout(fetchTransactions, 5000);
+          toast.success('Payment successful! Processing local capture...');
+          
+          try {
+            await fetch('http://localhost:3002/transactions/verify-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature
+              })
+            });
+          } catch(e) {
+             console.error('Local verification failed:', e);
+          }
+          
+          setTimeout(fetchTransactions, 2000);
         },
         prefill: {
           name: "Test User",

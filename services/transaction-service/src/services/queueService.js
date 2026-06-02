@@ -3,7 +3,26 @@ const sqsClient = require('../config/sqsClient');
 
 const sendToScoringQueue = async (transaction) => {
   if (process.env.NODE_ENV === 'development') {
-    console.log('DEV MODE: Skipping SQS, logging message:', JSON.stringify(transaction, null, 2));
+    console.log('DEV MODE: Skipping SQS, sending HTTP to local ai-scoring-service');
+    try {
+      fetch('http://localhost:3003/internal/score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messageType: 'SCORE_TRANSACTION',
+          transactionId: transaction.transactionId,
+          amount: transaction.amount,
+          merchantName: transaction.merchantName,
+          merchantCategory: transaction.merchantCategory,
+          location: transaction.location,
+          timestamp: transaction.timestamp,
+          cardType: transaction.cardType,
+          cardLastFour: transaction.cardLastFour
+        })
+      }).catch(err => console.error("Local scoring failed:", err.message));
+    } catch(err) {
+      console.error(err);
+    }
     return;
   }
 

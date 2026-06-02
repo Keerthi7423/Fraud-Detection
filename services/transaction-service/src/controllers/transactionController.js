@@ -311,3 +311,124 @@ exports.exportTransactions = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// @desc    Get all dashboard metrics
+// @route   GET /transactions/metrics
+// @access  Private
+exports.getMetrics = async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    // 1. Stats
+    const statsPromise = Transaction.aggregate([
+      { $match: { timestamp: { $gte: today } } },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          flagged: { 
+            $sum: { $cond: [{ $in: ['$status', ['suspicious', 'fraudulent']] }, 1, 0] } 
+          },
+          confirmed: { 
+            $sum: { $cond: [{ $eq: ['$status', 'fraudulent'] }, 1, 0] } 
+          },
+          saved: {
+            $sum: { $cond: [{ $eq: ['$status', 'fraudulent'] }, '$amount', 0] }
+          }
+        }
+      }
+    ]);
+
+    // 2. Trends
+    const trendsPromise = Transaction.aggregate([
+      { 
+        $match: { 
+          timestamp: { $gte: sevenDaysAgo },
+          status: { $in: ['suspicious', 'fraudulent'] }
+        } 
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { "_id": 1 } },
+      {
+        $project: {
+          date: "$_id",
+          count: 1,
+          _id: 0
+        }
+      }
+    ]);
+
+    // 3. Categories
+    const categoriesPromise = Transaction.aggregate([
+      { $match: { status: { $in: ['suspicious', 'fraudulent'] } } },
+      {
+        $group: {
+          _id: "$merchantCategory",
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { count: -1 } },
+      {
+        $project: {
+          category: "$_id",
+          count: 1,
+          _id: 0
+        }
+      }
+    ]);
+
+    // 4. Hours
+    const hoursPromise = Transaction.aggregate([
+      { $match: { status: { $in: ['suspicious', 'fraudulent'] } } },
+      {
+        $group: {
+          _id: { $hour: "$timestamp" },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { "_id": 1 } },
+      {
+        $project: {
+          hour: "$_id",
+          count: 1,
+          _id: 0
+        }
+      }
+    ]);
+
+    const [statsResult, trendsResult, categoriesResult, hoursResult] = await Promise.all([
+      statsPromise,
+      trendsPromise,
+      categoriesPromise,
+      hoursPromise
+    ]);
+
+    const stats = statsResult.length > 0 ? statsResult[0] : {
+      total: 0,
+      flagged: 0,
+      confirmed: 0,
+      saved: 0
+    };
+
+    res.status(200).json({ 
+      success: true, 
+      metrics: {
+        stats,
+        trends: trendsResult,
+        categories: categoriesResult,
+        hours: hoursResult
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

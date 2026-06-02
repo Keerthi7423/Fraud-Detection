@@ -110,4 +110,54 @@ const handleWebhook = async (req, res) => {
   res.status(200).json({ status: 'ok' });
 };
 
-module.exports = { createOrder, handleWebhook };
+/**
+ * Verify Payment from Frontend (Local Dev Fallback)
+ */
+const verifyPayment = async (req, res) => {
+  try {
+    const { razorpay_payment_id } = req.body;
+    if (!razorpay_payment_id) {
+      return res.status(400).json({ success: false, message: 'Missing payment ID' });
+    }
+
+    const payment = await razorpay.payments.fetch(razorpay_payment_id);
+    
+    // Avoid processing the same payment twice
+    const existingTxn = await Transaction.findOne({ transactionId: payment.id });
+    if (existingTxn) {
+      return res.json({ success: true, message: 'Payment already processed' });
+    }
+
+    // Map Razorpay payment entity to our Transaction model
+    const transactionData = {
+      transactionId: payment.id,
+      amount: payment.amount / 100,
+      currency: payment.currency,
+      merchantName: payment.notes?.merchant_name || 'Razorpay Store',
+      merchantCategory: payment.notes?.category || 'Online Shopping',
+      cardLastFour: payment.card?.last4 || 'N/A',
+      cardType: payment.method || 'unknown',
+      location: {
+        city: payment.notes?.city || 'Mumbai',
+        country: 'IN',
+        ipAddress: payment.ip || '0.0.0.0'
+      },
+      timestamp: new Date(payment.created_at * 1000),
+      status: 'pending',
+      scoringStatus: 'queued'
+    };
+
+    const transaction = await Transaction.create(transactionData);
+    console.log('Transaction created from Razorpay verify API:', transaction.transactionId);
+
+    // Trigger AI scoring via SQS/local fallback
+    await sendToScoringQueue(transaction);
+
+    res.json({ success: true, transaction });
+  } catch (error) {
+    console.error('Error verifying Razorpay payment:', error);
+    res.status(500).json({ success: false, message: 'Verification failed' });
+  }
+};
+
+module.exports = { createOrder, handleWebhook, verifyPayment };
