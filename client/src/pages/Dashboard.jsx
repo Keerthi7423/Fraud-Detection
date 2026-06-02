@@ -34,17 +34,15 @@ const Dashboard = () => {
     try {
       setLoading(true);
       setError(null);
-      const [statsRes, trendsRes, categoriesRes, hoursRes] = await Promise.all([
-        transactionAPI.get('/stats'),
-        transactionAPI.get('/trends'),
-        transactionAPI.get('/categories'),
-        transactionAPI.get('/hours')
-      ]);
-
-      if (statsRes.data.success) setStats(statsRes.data.stats);
-      if (trendsRes.data.success) setTrends(trendsRes.data.trends);
-      if (categoriesRes.data.success) setCategories(categoriesRes.data.categories);
-      if (hoursRes.data.success) setHours(hoursRes.data.hours);
+      const response = await transactionAPI.get('/metrics');
+      
+      if (response.data.success) {
+        const { stats, trends, categories, hours } = response.data.metrics;
+        setStats(stats);
+        setTrends(trends);
+        setCategories(categories);
+        setHours(hours);
+      }
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
       setError('Failed to load real-time intelligence. Please check your connection to the Transaction Service.');

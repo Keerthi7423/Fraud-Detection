@@ -24,6 +24,31 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok', service: 'notification-service' });
 });
 
+// Internal webhook for local dev (replaces SQS)
+app.post('/internal/audit', async (req, res) => {
+    try {
+        const body = req.body;
+        const AuditLog = require('./models/AuditLog');
+        const auditLog = new AuditLog({
+            transactionId: body.transactionId,
+            analystId: body.analystId,
+            analystName: body.analystName || 'system',
+            action: body.action,
+            note: body.note || (body.aiReasons ? body.aiReasons.join(', ') : ''),
+            previousStatus: body.previousStatus,
+            newStatus: body.newStatus,
+            riskScore: body.riskScore,
+            source: body.analystId ? 'analyst' : 'system'
+        });
+        await auditLog.save();
+        console.log(`Internal Audit logged: ${body.transactionId} -> ${body.action}`);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Internal Audit Error:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Start Worker
 require('./workers/notificationWorker');
 

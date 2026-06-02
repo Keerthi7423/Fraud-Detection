@@ -38,6 +38,9 @@ async function scoreTransaction(transaction) {
   `;
 
   try {
+    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY_HERE') {
+      throw new Error("Missing Gemini API Key");
+    }
     const result = await model.generateContent(prompt);
     const text = result.response.text().trim();
 
@@ -53,12 +56,41 @@ async function scoreTransaction(transaction) {
     };
   } catch (err) {
     console.error('Gemini scoring error:', err.message);
-    // Return default safe score if AI fails — do not crash
+    // Manual fallback scoring for local demo when API key is missing
+    let riskScore = 10;
+    let reasons = ['System rules applied (AI offline)'];
+    
+    if (transaction.amount > 50000) {
+      riskScore += 50;
+      reasons.push('High transaction amount');
+    }
+    
+    const hour = new Date(transaction.timestamp).getHours();
+    if (hour >= 23 || hour <= 5) {
+      riskScore += 30;
+      reasons.push('Late night transaction');
+    }
+    
+    if (['electronics', 'jewelry'].includes(transaction.merchantCategory?.toLowerCase())) {
+      riskScore += 20;
+      reasons.push('High-risk category');
+    }
+
+    let riskLevel = 'low';
+    let rec = 'approve';
+    if (riskScore > 90) {
+      riskLevel = 'critical'; rec = 'block';
+    } else if (riskScore > 70) {
+      riskLevel = 'high'; rec = 'review';
+    } else if (riskScore > 40) {
+      riskLevel = 'medium'; rec = 'review';
+    }
+
     return {
-      riskScore: 0,
-      riskLevel: 'low',
-      aiReasons: ['AI scoring unavailable'],
-      aiRecommendation: 'review'
+      riskScore: Math.min(riskScore, 99),
+      riskLevel,
+      aiReasons: reasons,
+      aiRecommendation: rec
     };
   }
 }

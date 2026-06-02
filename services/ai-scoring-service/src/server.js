@@ -21,6 +21,60 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', service: 'ai-scoring-service' });
 });
 
+// Internal webhook for local dev (replaces SQS)
+app.post('/internal/score', async (req, res) => {
+  try {
+    const { scoreTransaction } = require('./services/aiScoringService');
+    const Transaction = require('./models/Transaction');
+    
+    const body = req.body;
+    console.log(`Processing local transaction: ${body.transactionId}`);
+    
+    const score = await scoreTransaction(body);
+
+    let newStatus = 'clean';
+    if (score.riskScore > 90) newStatus = 'fraudulent';
+    else if (score.riskScore > 70) newStatus = 'suspicious';
+
+    await Transaction.findOneAndUpdate(
+      { transactionId: body.transactionId },
+      {
+        riskScore: score.riskScore,
+        riskLevel: score.riskLevel,
+        aiReasons: score.aiReasons,
+        aiRecommendation: score.aiRecommendation,
+        status: newStatus,
+        scoringStatus: 'scored'
+      }
+    );
+
+    // Call notification-service synchronously
+    try {
+      await fetch('http://localhost:3004/internal/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messageType: 'TRANSACTION_SCORED',
+          transactionId: body.transactionId,
+          riskScore: score.riskScore,
+          riskLevel: score.riskLevel,
+          newStatus,
+          aiReasons: score.aiReasons,
+          action: 'auto-flagged',
+          source: 'system'
+        })
+      });
+    } catch (err) {
+      console.error('Failed to call local notification service:', err.message);
+    }
+
+    res.json({ success: true, score, newStatus });
+  } catch (error) {
+    console.error('Local scoring error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Connect to MongoDB
 connectDB().then(() => {
   // Start SQS Worker
