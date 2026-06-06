@@ -10,6 +10,7 @@ import AuditLog from './pages/AuditLog';
 import AdminPanel from './pages/AdminPanel';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/common/Layout';
+import Notifications from './pages/Notifications';
 
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
@@ -30,6 +31,7 @@ function App() {
             <Route path="/transactions" element={<TransactionFeed />} />
             <Route path="/transactions/:id" element={<TransactionDetail />} />
             <Route path="/queue" element={<ReviewQueue />} />
+            <Route path="/notifications" element={<Notifications />} />
             <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
               <Route path="/audit" element={<AuditLog />} />
               <Route path="/admin" element={<AdminPanel />} />
