@@ -1,9 +1,49 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { Bell, User, Search, Menu } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import transactionService from '../../services/transactionService';
 
 const Navbar = ({ title, onMenuClick }) => {
   const { user } = useSelector((state) => state.auth);
+  const navigate = useNavigate();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const fetchUnread = async () => {
+      try {
+        // Fetch recent transactions to match the notifications page
+        const res = await transactionService.getTransactions({ limit: 5 });
+        if (res && res.success) {
+          const isAllRead = localStorage.getItem('notificationsAllRead') === 'true';
+          if (!isAllRead) {
+            setUnreadCount((res.transactions?.length || 0) + 1); // +1 for sys-1
+          } else {
+             // If marked all as read, we can just keep it at 0
+             // (In a real app, we'd check timestamps)
+             setUnreadCount(0);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch unread count', err);
+      }
+    };
+    
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 10000);
+
+    const handleClear = () => setUnreadCount(0);
+    const handleReadOne = () => setUnreadCount(prev => Math.max(0, prev - 1));
+    
+    window.addEventListener('notificationsRead', handleClear);
+    window.addEventListener('notificationReadOne', handleReadOne);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('notificationsRead', handleClear);
+      window.removeEventListener('notificationReadOne', handleReadOne);
+    };
+  }, []);
 
   return (
     <header className="h-16 bg-[#0F1117]/80 backdrop-blur-md border-b border-[#2A2D3E] flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30">
@@ -27,9 +67,16 @@ const Navbar = ({ title, onMenuClick }) => {
           />
         </div>
 
-        <button className="relative p-2 text-[#94A3B8] hover:text-[#F1F5F9] transition-colors">
+        <button 
+          onClick={() => navigate('/notifications')}
+          className="relative p-2 text-[#94A3B8] hover:text-[#F1F5F9] transition-colors"
+        >
           <Bell className="w-5 h-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-[#0F1117]"></span>
+          {unreadCount > 0 ? (
+            <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full border border-[#0F1117] text-[10px] font-bold text-white flex items-center justify-center">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          ) : null}
         </button>
 
         <div className="flex items-center space-x-3 lg:pl-4 lg:border-l lg:border-[#2A2D3E]">
