@@ -14,7 +14,9 @@ exports.getAllTransactions = async (req, res) => {
       maxAmount, 
       startDate, 
       endDate, 
-      search 
+      search,
+      page = 1,
+      limit = 10
     } = req.query;
 
     let filter = {};
@@ -41,12 +43,23 @@ exports.getAllTransactions = async (req, res) => {
       ];
     }
 
-    const transactions = await Transaction.find(filter).sort({ timestamp: -1 });
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    const transactions = await Transaction.find(filter)
+      .sort({ timestamp: -1 })
+      .skip(skip)
+      .limit(limitNum);
+      
     const total = await Transaction.countDocuments(filter);
 
     res.status(200).json({
       success: true,
       total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum),
       transactions
     });
   } catch (error) {
@@ -145,11 +158,28 @@ exports.updateTransactionStatus = async (req, res) => {
 // @access  Private
 exports.getReviewQueue = async (req, res) => {
   try {
-    const transactions = await Transaction.find({
-      status: { $in: ['pending', 'suspicious'] }
-    }).sort({ riskScore: -1 });
+    const { page = 1, limit = 10 } = req.query;
+    
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+    const filter = { status: { $in: ['pending', 'suspicious'] } };
 
-    res.status(200).json({ success: true, count: transactions.length, transactions });
+    const transactions = await Transaction.find(filter)
+      .sort({ riskScore: -1 })
+      .skip(skip)
+      .limit(limitNum);
+      
+    const total = await Transaction.countDocuments(filter);
+
+    res.status(200).json({ 
+      success: true, 
+      total, 
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum),
+      transactions 
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

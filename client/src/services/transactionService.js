@@ -32,8 +32,11 @@ const transactionService = {
     return response.data;
   },
 
-  getQueue: async () => {
-    const response = await transactionAPI.get('/queue');
+  getQueue: async (filters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.page) params.append('page', filters.page);
+    if (filters.limit) params.append('limit', filters.limit);
+    const response = await transactionAPI.get(`/queue${params.toString() ? '?' + params.toString() : ''}`);
     return response.data;
   },
 

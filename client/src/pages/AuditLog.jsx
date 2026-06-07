@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { History, RefreshCcw, User, ShieldCheck, ShieldAlert, Zap, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import DatePicker from 'react-datepicker';
@@ -9,6 +9,7 @@ import { getAuditLogs } from '../services/auditService';
 import LoadingSkeleton from '../components/common/LoadingSkeleton';
 import EmptyState from '../components/common/EmptyState';
 import ErrorState from '../components/common/ErrorState';
+import Pagination from '../components/common/Pagination';
 
 const AuditLog = () => {
   const { user } = useSelector((state) => state.auth);
@@ -26,12 +27,26 @@ const AuditLog = () => {
     startDate: null,
     endDate: null
   });
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialPage = parseInt(searchParams.get('page'), 10) || 1;
+  const [pagination, setPagination] = useState({ page: initialPage, limit: 10, total: 0, totalPages: 0 });
 
-  const fetchLogs = async () => {
+  useEffect(() => {
+    setSearchParams(prev => {
+      if (pagination.page > 1) {
+        prev.set('page', pagination.page);
+      } else {
+        prev.delete('page');
+      }
+      return prev;
+    }, { replace: true });
+  }, [pagination.page, setSearchParams]);
+
+  const fetchLogs = async (pageToFetch = pagination.page) => {
     try {
       setLoading(true);
       setError(null);
-      const queryParams = {};
+      const queryParams = { page: pageToFetch, limit: pagination.limit };
       if (filters.analystName) queryParams.analystName = filters.analystName;
       if (filters.action) queryParams.action = filters.action;
       if (filters.startDate) queryParams.startDate = filters.startDate.toISOString();
@@ -39,6 +54,14 @@ const AuditLog = () => {
 
       const data = await getAuditLogs(queryParams);
       setLogs(Array.isArray(data) ? data : (data.logs || []));
+      if (data && data.total !== undefined) {
+        setPagination(prev => ({
+          ...prev,
+          page: pageToFetch,
+          total: data.total,
+          totalPages: data.totalPages
+        }));
+      }
     } catch (err) {
       console.error(err);
       setError('Failed to load audit logs. Please check your connection to the Notification Service.');
@@ -55,7 +78,7 @@ const AuditLog = () => {
   }, []);
 
   const handleApplyFilters = () => {
-    fetchLogs();
+    fetchLogs(1);
   };
 
   const handleResetFilters = () => {
@@ -67,7 +90,7 @@ const AuditLog = () => {
     });
     // Need a timeout to allow state to update before fetch if we don't use useEffect
     setTimeout(() => {
-      fetchLogs();
+      fetchLogs(1);
     }, 0);
   };
 
@@ -172,6 +195,7 @@ const AuditLog = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#1A1D27] border-b border-[#2A2D3E]">
+                  <th className="px-6 py-4 text-xs font-bold text-[#4B5563] uppercase tracking-wider">S.No</th>
                   <th className="px-6 py-4 text-xs font-bold text-[#4B5563] uppercase tracking-wider">Timestamp</th>
                   <th className="px-6 py-4 text-xs font-bold text-[#4B5563] uppercase tracking-wider">Analyst</th>
                   <th className="px-6 py-4 text-xs font-bold text-[#4B5563] uppercase tracking-wider">Transaction ID</th>
@@ -183,14 +207,14 @@ const AuditLog = () => {
                 {loading ? (
                   Array(5).fill(0).map((_, i) => (
                     <tr key={i}>
-                      <td colSpan="5" className="px-6 py-4">
+                      <td colSpan="6" className="px-6 py-4">
                         <LoadingSkeleton rows={1} />
                       </td>
                     </tr>
                   ))
                 ) : logs.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="p-8">
+                    <td colSpan="6" className="p-8">
                       <EmptyState 
                         title="No logs recorded" 
                         description="Action logs will appear here once analysts start reviewing transactions." 
@@ -199,13 +223,16 @@ const AuditLog = () => {
                     </td>
                   </tr>
                 ) : (
-                  logs.map((log) => {
+                  logs.map((log, index) => {
                     const actionStyle = getActionStyles(log.action);
                     return (
                       <tr 
                         key={log._id}
                         className="hover:bg-[#1A1D27] transition-colors"
                       >
+                        <td className="px-6 py-4 font-mono text-xs text-[#94A3B8]">
+                          {(pagination.page - 1) * pagination.limit + index + 1}
+                        </td>
                         <td className="px-6 py-4 text-sm text-[#94A3B8]">
                           {new Date(log.timestamp).toLocaleString()}
                         </td>
@@ -236,6 +263,15 @@ const AuditLog = () => {
               </tbody>
             </table>
           </div>
+        )}
+        {logs.length > 0 && (
+          <Pagination 
+            currentPage={pagination.page}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.total}
+            itemsPerPage={pagination.limit}
+            onPageChange={(page) => fetchLogs(page)}
+          />
         )}
       </div>
     </div>

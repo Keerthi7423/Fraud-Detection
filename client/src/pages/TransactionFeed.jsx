@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, RefreshCcw, CreditCard } from 'lucide-react';
 import toast from 'react-hot-toast';
 import transactionService from '../services/transactionService';
@@ -8,6 +8,7 @@ import TransactionTable from '../components/transactions/TransactionTable';
 import LoadingSkeleton from '../components/common/LoadingSkeleton';
 import EmptyState from '../components/common/EmptyState';
 import ErrorState from '../components/common/ErrorState';
+import Pagination from '../components/common/Pagination';
 
 const TransactionFeed = () => {
   const navigate = useNavigate();
@@ -24,6 +25,20 @@ const TransactionFeed = () => {
     fromDate: null,
     toDate: null
   });
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialPage = parseInt(searchParams.get('page'), 10) || 1;
+  const [pagination, setPagination] = useState({ page: initialPage, limit: 10, total: 0, totalPages: 0 });
+
+  useEffect(() => {
+    setSearchParams(prev => {
+      if (pagination.page > 1) {
+        prev.set('page', pagination.page);
+      } else {
+        prev.delete('page');
+      }
+      return prev;
+    }, { replace: true });
+  }, [pagination.page, setSearchParams]);
 
   const fetchTransactions = async () => {
     try {
@@ -34,12 +49,19 @@ const TransactionFeed = () => {
       const apiFilters = {
         ...filters,
         startDate: filters.fromDate ? filters.fromDate.toISOString() : undefined,
-        endDate: filters.toDate ? filters.toDate.toISOString() : undefined
+        endDate: filters.toDate ? filters.toDate.toISOString() : undefined,
+        page: pagination.page,
+        limit: pagination.limit
       };
 
       const response = await transactionService.getTransactions(apiFilters);
       if (response.success) {
         setTransactions(response.transactions);
+        setPagination(prev => ({
+          ...prev,
+          total: response.total,
+          totalPages: response.totalPages
+        }));
       }
     } catch (err) {
       console.error('Fetch error:', err);
@@ -51,7 +73,7 @@ const TransactionFeed = () => {
 
   useEffect(() => {
     fetchTransactions();
-  }, []);
+  }, [pagination.page]);
 
   const handleCreateMock = async () => {
     try {
@@ -80,21 +102,29 @@ const TransactionFeed = () => {
       toDate: null
     };
     setFilters(defaultFilters);
-    // Use the default filters immediately for the fetch
-    fetchTransactionsWithFilters(defaultFilters);
+    setPagination(prev => ({ ...prev, page: 1 }));
+    fetchTransactionsWithFilters(defaultFilters, 1);
   };
 
-  const fetchTransactionsWithFilters = async (filtersToUse) => {
+  const fetchTransactionsWithFilters = async (filtersToUse, pageToUse = pagination.page) => {
     try {
       setLoading(true);
       const apiFilters = {
         ...filtersToUse,
         startDate: filtersToUse.fromDate ? filtersToUse.fromDate.toISOString() : undefined,
-        endDate: filtersToUse.toDate ? filtersToUse.toDate.toISOString() : undefined
+        endDate: filtersToUse.toDate ? filtersToUse.toDate.toISOString() : undefined,
+        page: pageToUse,
+        limit: pagination.limit
       };
       const response = await transactionService.getTransactions(apiFilters);
       if (response.success) {
         setTransactions(response.transactions);
+        setPagination(prev => ({
+          ...prev,
+          page: pageToUse,
+          total: response.total,
+          totalPages: response.totalPages
+        }));
       }
     } catch (err) {
       setError('Failed to load transactions.');
@@ -200,7 +230,7 @@ const TransactionFeed = () => {
       <FilterBar 
         filters={filters} 
         setFilters={setFilters} 
-        onApply={fetchTransactions} 
+        onApply={() => { setPagination(prev => ({ ...prev, page: 1 })); fetchTransactionsWithFilters(filters, 1); }} 
         onReset={handleReset}
         loading={loading}
       />
@@ -215,7 +245,16 @@ const TransactionFeed = () => {
           description="Try adjusting your filters or create a mock transaction to see results." 
         />
       ) : (
-        <TransactionTable data={transactions} />
+        <div className="bg-[#11131C] rounded-xl flex flex-col">
+          <TransactionTable data={transactions} page={pagination.page} limit={pagination.limit} />
+          <Pagination 
+            currentPage={pagination.page}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.total}
+            itemsPerPage={pagination.limit}
+            onPageChange={(page) => setPagination(prev => ({ ...prev, page }))}
+          />
+        </div>
       )}
     </div>
   );
