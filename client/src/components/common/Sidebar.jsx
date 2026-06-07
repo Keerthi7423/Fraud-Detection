@@ -52,7 +52,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
 
   const sidebarClasses = `
     fixed inset-y-0 left-0 z-50 w-60 bg-[#13151F] border-r border-[#2A2D3E] flex flex-col h-screen 
-    transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0
+    transform transition-transform duration-300 ease-in-out lg:translate-x-0
     ${isOpen ? 'translate-x-0' : '-translate-x-full'}
   `;
 

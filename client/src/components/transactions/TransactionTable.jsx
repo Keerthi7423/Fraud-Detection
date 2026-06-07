@@ -2,20 +2,28 @@ import React, { useMemo, useState } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   flexRender,
 } from '@tanstack/react-table';
-import { Eye, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown } from 'lucide-react';
+import { Eye, ArrowUpDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import RiskBadge from '../common/RiskBadge';
 
-const TransactionTable = ({ data = [], loading, isQueueView, onAction }) => {
+const TransactionTable = ({ data = [], loading, isQueueView, onAction, page = 1, limit = 10 }) => {
   const navigate = useNavigate();
   const [sorting, setSorting] = useState([]);
 
   const columns = useMemo(
     () => [
+      {
+        id: 'serial',
+        header: 'S.No',
+        cell: (info) => (
+          <span className="text-gray-400 font-mono text-xs">
+            {(page - 1) * limit + info.row.index + 1}
+          </span>
+        ),
+      },
       {
         accessorKey: 'transactionId',
         header: 'TXN ID',
@@ -157,7 +165,7 @@ const TransactionTable = ({ data = [], loading, isQueueView, onAction }) => {
         },
       },
     ],
-    [navigate, isQueueView, onAction]
+    [navigate, isQueueView, onAction, page, limit]
   );
 
   const table = useReactTable({
@@ -168,13 +176,7 @@ const TransactionTable = ({ data = [], loading, isQueueView, onAction }) => {
     },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    initialState: {
-      pagination: {
-        pageSize: 20,
-      },
-    },
   });
 
   return (
@@ -230,65 +232,6 @@ const TransactionTable = ({ data = [], loading, isQueueView, onAction }) => {
         </table>
       </div>
 
-      {/* Pagination */}
-      <div className="px-6 py-4 bg-[#1A1D27]/30 border-t border-[#2A2D3E] flex items-center justify-between text-gray-400 text-sm">
-        <div className="flex items-center gap-2">
-          <span>Rows per page:</span>
-          <select
-            value={table.getState().pagination.pageSize}
-            onChange={(e) => table.setPageSize(Number(e.target.value))}
-            className="bg-[#11131C] border border-[#2A2D3E] rounded px-2 py-1 outline-none text-xs"
-          >
-            {[10, 20, 30, 40, 50].map((pageSize) => (
-              <option key={pageSize} value={pageSize}>
-                {pageSize}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-1">
-            <span>Page</span>
-            <span className="font-bold text-white">
-              {table.getState().pagination.pageIndex + 1}
-            </span>
-            <span>of</span>
-            <span className="font-bold text-white">{table.getPageCount()}</span>
-          </div>
-
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => table.setPageIndex(0)}
-              disabled={!table.getCanPreviousPage()}
-              className="p-1 disabled:opacity-30 hover:text-white transition-colors"
-            >
-              <ChevronsLeft size={20} />
-            </button>
-            <button
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-              className="p-1 disabled:opacity-30 hover:text-white transition-colors"
-            >
-              <ChevronLeft size={20} />
-            </button>
-            <button
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-              className="p-1 disabled:opacity-30 hover:text-white transition-colors"
-            >
-              <ChevronRight size={20} />
-            </button>
-            <button
-              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-              disabled={!table.getCanNextPage()}
-              className="p-1 disabled:opacity-30 hover:text-white transition-colors"
-            >
-              <ChevronsRight size={20} />
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

@@ -23,7 +23,7 @@ const Layout = () => {
   return (
     <div className="flex min-h-screen bg-[#0F1117] text-[#F1F5F9]">
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 lg:ml-60">
         <Navbar 
           title={getPageTitle(location.pathname)} 
           onMenuClick={() => setIsSidebarOpen(true)}
