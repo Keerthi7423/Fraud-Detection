@@ -29,11 +29,6 @@ jobs:
     - name: Build Project
       working-directory: ./client
       run: npm run build
-      env:
-        VITE_AUTH_URL: ${{ secrets.VITE_AUTH_URL }}
-        VITE_TRANSACTION_URL: ${{ secrets.VITE_TRANSACTION_URL }}
-        VITE_AUDIT_URL: ${{ secrets.VITE_AUDIT_URL }}
-        VITE_NOTIFICATION_URL: ${{ secrets.VITE_NOTIFICATION_URL }}
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
