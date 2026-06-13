@@ -38,6 +38,20 @@ const pollNotifications = async () => {
                     await auditLog.save();
                     console.log(`Audit logged: ${body.transactionId} -> ${body.action}`);
 
+                    try {
+                        const io = require('../config/socket').getIO();
+                        io.emit('NEW_NOTIFICATION', {
+                            transactionId: body.transactionId,
+                            action: body.action,
+                            riskScore: body.riskScore,
+                            newStatus: body.newStatus,
+                            note: auditLog.note,
+                            timestamp: new Date().toISOString()
+                        });
+                    } catch (err) {
+                        console.error('WebSocket emit error:', err.message);
+                    }
+
                     // Delete message from queue
                     await sqsClient.send(new DeleteMessageCommand({
                         QueueUrl: process.env.SQS_NOTIFICATION_QUEUE_URL,

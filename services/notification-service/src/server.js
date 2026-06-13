@@ -42,6 +42,21 @@ app.post('/internal/audit', async (req, res) => {
         });
         await auditLog.save();
         console.log(`Internal Audit logged: ${body.transactionId} -> ${body.action}`);
+        
+        try {
+            const io = require('./config/socket').getIO();
+            io.emit('NEW_NOTIFICATION', {
+                transactionId: body.transactionId,
+                action: body.action,
+                riskScore: body.riskScore,
+                newStatus: body.newStatus,
+                note: auditLog.note,
+                timestamp: new Date().toISOString()
+            });
+        } catch (err) {
+            console.error('WebSocket emit error:', err.message);
+        }
+
         res.json({ success: true });
     } catch (error) {
         console.error('Internal Audit Error:', error.message);
@@ -53,7 +68,10 @@ app.post('/internal/audit', async (req, res) => {
 require('./workers/notificationWorker');
 
 const PORT = process.env.PORT || 3004;
-app.listen(PORT, () => {
+const server = require('http').createServer(app);
+require('./config/socket').init(server);
+
+server.listen(PORT, () => {
     console.log(`Notification Service running on port ${PORT}`);
 });
 
