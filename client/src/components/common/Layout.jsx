@@ -2,10 +2,14 @@ import React, { useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
+import { useWebSocket } from '../../hooks/useWebSocket';
 
 const Layout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
+  
+  // Initialize real-time notifications
+  useWebSocket();
   
   const getPageTitle = (pathname) => {
     if (pathname.startsWith('/transactions/')) return 'Transaction Detail';
