@@ -55,6 +55,6 @@ jobs:
       uses: aws-actions/amazon-ecs-deploy-task-definition@v2
       with:
         task-definition: ${{ steps.task-def.outputs.task-definition }}
-        service: auth-service
+        service: fraudguard-auth-task-service-2c60sg9m
         cluster: fraudguard-cluster
         wait-for-service-stability: true
