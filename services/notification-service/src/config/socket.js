@@ -6,7 +6,7 @@ module.exports = {
   init: (httpServer) => {
     io = new Server(httpServer, {
       cors: {
-        origin: ['http://localhost:5173', 'https://d49m8z8w0jzwy.cloudfront.net', 'http://d49m8z8w0jzwy.cloudfront.net'],
+        origin: ['http://localhost:5173', 'https://d19m8z8w0jzwy.cloudfront.net', 'http://d19m8z8w0jzwy.cloudfront.net'],
         methods: ['GET', 'POST']
       }
     });
