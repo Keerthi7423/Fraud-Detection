@@ -20,7 +20,7 @@ const app = express();
 app.use(express.json());
 app.use(morgan('dev'));
 app.use(helmet());
-app.use(cors({ origin: ['http://localhost:5173', 'https://d19m8z8w0jzwy.cloudfront.net', 'http://d19m8z8w0jzwy.cloudfront.net'] }));
+app.use(cors({ origin: ['http://localhost:5173', 'https://d49m8z8w0jzwy.cloudfront.net', 'http://d49m8z8w0jzwy.cloudfront.net'] }));
 
 // Routes
 app.use('/auth', authRoutes);
