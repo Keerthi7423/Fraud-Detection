@@ -136,7 +136,7 @@ const TransactionFeed = () => {
   const handleRazorpayPayment = async () => {
     try {
       // 1. Create order on backend
-      const response = await fetch('http://localhost:3002/transactions/create-order', {
+      const response = await fetch(`${import.meta.env.VITE_TRANSACTION_URL}/transactions/create-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -159,7 +159,7 @@ const TransactionFeed = () => {
           toast.success('Payment successful! Processing local capture...');
           
           try {
-            await fetch('http://localhost:3002/transactions/verify-payment', {
+            await fetch(`${import.meta.env.VITE_TRANSACTION_URL}/transactions/verify-payment`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({

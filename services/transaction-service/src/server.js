@@ -62,4 +62,4 @@ process.on('unhandledRejection', (err, promise) => {
   // server.close(() => process.exit(1));
 });
 
-// Trigger deploy
+// Trigger deploy for metrics endpoint fix
