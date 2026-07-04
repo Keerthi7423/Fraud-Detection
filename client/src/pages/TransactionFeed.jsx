@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, RefreshCcw, CreditCard } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -71,8 +71,46 @@ const TransactionFeed = () => {
     }
   };
 
+  const filtersRef = useRef(filters);
+  const paginationRef = useRef(pagination);
+
+  useEffect(() => {
+    filtersRef.current = filters;
+    paginationRef.current = pagination;
+  });
+
   useEffect(() => {
     fetchTransactions();
+    
+    // Background polling every 5 seconds
+    const intervalId = setInterval(async () => {
+      try {
+        const currentFilters = filtersRef.current;
+        const currentPagination = paginationRef.current;
+        
+        const apiFilters = {
+          ...currentFilters,
+          startDate: currentFilters.fromDate ? currentFilters.fromDate.toISOString() : undefined,
+          endDate: currentFilters.toDate ? currentFilters.toDate.toISOString() : undefined,
+          page: currentPagination.page,
+          limit: currentPagination.limit
+        };
+        
+        const response = await transactionService.getTransactions(apiFilters);
+        if (response.success) {
+          setTransactions(response.transactions);
+          setPagination(prev => ({
+            ...prev,
+            total: response.total,
+            totalPages: response.totalPages
+          }));
+        }
+      } catch (err) {
+        console.error('Background fetch error:', err);
+      }
+    }, 5000);
+
+    return () => clearInterval(intervalId);
   }, [pagination.page]);
 
   const handleCreateMock = async () => {

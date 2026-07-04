@@ -39,7 +39,7 @@ const AdminPanel = () => {
       services.map(async (service) => {
         try {
           const start = Date.now();
-          const response = await axios.get(`${service.url}/health`, { timeout: 5000 });
+          const response = await axios.get(`${service.url}/health?service=${service.id}&t=${Date.now()}`, { timeout: 5000 });
           const latency = Date.now() - start;
           return { 
             ...service, 
