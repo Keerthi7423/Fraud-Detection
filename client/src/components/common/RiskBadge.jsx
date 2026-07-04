@@ -16,10 +16,16 @@ const RiskBadge = ({ level, status }) => {
     }
   };
 
+  const displayStatus = (s) => {
+    if (!s) return level;
+    if (s.toLowerCase() === 'clean') return 'Approved';
+    return s;
+  };
+
   return (
     <span className={`px-3 py-1 rounded-full text-[10px] font-bold border uppercase tracking-wider flex items-center gap-1.5 w-fit ${getStyles()}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${level === 'critical' ? 'bg-red-500 animate-ping' : 'bg-current'}`} />
-      {status || level}
+      {displayStatus(status)}
     </span>
   );
 };
