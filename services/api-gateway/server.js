@@ -26,19 +26,19 @@ app.use((req, res, next) => {
 // Proxy rules
 app.use(createProxyMiddleware({
   pathFilter: '/auth',
-  target: 'http://localhost:3001',
+  target: process.env.AUTH_SERVICE_URL || 'http://localhost:3001',
   changeOrigin: true
 }));
 
 app.use(createProxyMiddleware({
   pathFilter: '/transactions',
-  target: 'http://localhost:3002',
+  target: process.env.TRANSACTION_SERVICE_URL || 'http://localhost:3002',
   changeOrigin: true
 }));
 
 app.use(createProxyMiddleware({
   pathFilter: '/audit',
-  target: 'http://localhost:3004',
+  target: process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3004',
   changeOrigin: true
 }));
 
