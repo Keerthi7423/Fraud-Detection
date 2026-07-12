@@ -28,9 +28,9 @@ const TransactionDetail = () => {
   const [txn, setTxn] = useState(null);
   const [note, setNote] = useState('');
 
-  const fetchTransaction = async () => {
+  const fetchTransaction = async (isPolling = false) => {
     try {
-      setLoading(true);
+      if (!isPolling) setLoading(true);
       const response = await transactionService.getTransaction(id);
       if (response.success) {
         setTxn(response.transaction);
@@ -40,15 +40,28 @@ const TransactionDetail = () => {
         }
       }
     } catch (err) {
-      toast.error('Failed to load transaction details');
+      if (!isPolling) toast.error('Failed to load transaction details');
     } finally {
-      setLoading(false);
+      if (!isPolling) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchTransaction();
   }, [id]);
+
+  // Poll for updates if AI scoring is in progress
+  useEffect(() => {
+    let intervalId;
+    if (txn && txn.scoringStatus !== 'scored') {
+      intervalId = setInterval(() => {
+        fetchTransaction(true);
+      }, 3000);
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [txn?.scoringStatus, id]);
 
   const handleAction = async (status) => {
     if (!note || note.length < 10) {

@@ -13,6 +13,7 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 import { logout, setQueueCount } from '../../store/slices/authSlice';
 import transactionService from '../../services/transactionService';
+import { authAPI } from '../../services/api';
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const dispatch = useDispatch();
@@ -24,7 +25,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     const fetchQueueCount = async () => {
       try {
         const data = await transactionService.getQueue();
-        dispatch(setQueueCount(data.count || 0));
+        dispatch(setQueueCount(data.total || 0));
       } catch (err) {
         console.error('Failed to fetch queue count', err);
       }
@@ -45,7 +46,12 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     navItems.push({ name: 'Admin Panel', path: '/admin', icon: Settings });
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await authAPI.post('/logout');
+    } catch (err) {
+      console.error('Logout failed', err);
+    }
     dispatch(logout());
     navigate('/login');
   };
@@ -100,8 +106,10 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                 }`} />
                 <span className="font-medium">{item.name}</span>
               </div>
-              {item.badge && (
-                <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full relative z-10 animate-pulse">
+              {item.badge !== undefined && (
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full relative z-10 ${
+                  item.badge > 0 ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-700 text-gray-300'
+                }`}>
                   {item.badge}
                 </span>
               )}
