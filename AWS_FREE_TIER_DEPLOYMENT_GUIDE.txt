@@ -1,0 +1,76 @@
+AWS FREE TIER DEPLOYMENT GUIDE (100% FREE)
+==================================================
+
+Since AWS ECS (Fargate) is generally not free for running multiple microservices 24/7, the best way to host your entire backend for 100% free is by using a single AWS EC2 "t2.micro" instance and running your services via Docker Compose.
+
+STEP 1: CREATE YOUR FREE AWS ACCOUNT
+--------------------------------------------------
+1. Go to https://aws.amazon.com/free/ and click "Create a Free Account".
+2. Fill out your email and create a password.
+3. Enter your contact information and link a debit/credit card (AWS charges $1 and refunds it immediately to verify identity).
+4. Verify your phone number via SMS.
+5. Select the "Basic Support - Free" plan.
+
+STEP 2: LAUNCH YOUR FREE EC2 SERVER
+--------------------------------------------------
+1. Log into your new AWS Console.
+2. Search for "EC2" in the top search bar and click it.
+3. Click the orange "Launch instance" button.
+4. Name your server (e.g., "fraud-guard-backend").
+5. Under "OS Images", select "Ubuntu" (Ubuntu Server 24.04 LTS). Make sure it says "Free tier eligible".
+6. Under "Instance type", ensure "t2.micro" is selected (Free tier eligible).
+7. Under "Key pair (login)", click "Create new key pair". Name it "fraudguard-key", select "RSA" and ".pem", then click Create. (This will download a file to your computer—DO NOT LOSE THIS FILE!).
+8. Under "Network settings", check these boxes:
+   - Allow SSH traffic from Anywhere
+   - Allow HTTP traffic from the internet
+   - Allow HTTPS traffic from the internet
+9. Click "Launch instance" at the bottom right.
+
+STEP 3: CONNECT TO YOUR SERVER & INSTALL DOCKER
+--------------------------------------------------
+1. In the EC2 console, click on your running instance and copy the "Public IPv4 address".
+2. Open PowerShell or Command Prompt on your Windows machine where your .pem key downloaded.
+3. Connect using SSH: 
+   ssh -i "fraudguard-key.pem" ubuntu@<YOUR_PUBLIC_IP>
+   (Type 'yes' if it prompts you about the fingerprint).
+4. Once inside the server, run these commands one by one to install Docker:
+   sudo apt-get update
+   sudo apt-get install -y docker.io docker-compose git
+   sudo usermod -aG docker $USER
+5. Type `exit` to disconnect, then reconnect again so the Docker permissions take effect.
+   ssh -i "fraudguard-key.pem" ubuntu@<YOUR_PUBLIC_IP>
+
+STEP 4: DEPLOY YOUR CODE
+--------------------------------------------------
+1. Inside your EC2 server, clone your GitHub repository:
+   git clone https://github.com/Keerthi7423/Fraud-Detection.git
+   cd Fraud-Detection
+
+2. Create a global environment file. Type `nano .env` and paste all your credentials (MongoDB, Razorpay, JWT, Gemini). It should look like this:
+   MONGO_URI=mongodb://...
+   JWT_SECRET=fraudguard_secret_key_2025
+   GEMINI_API_KEY=AQ.Ab8RN...
+   RAZORPAY_KEY_ID=rzp_test_Spv9...
+   RAZORPAY_KEY_SECRET=W8VZuD8...
+   RAZORPAY_WEBHOOK_SECRET=fraud_guard_secret
+   NODE_ENV=production
+   
+   (Press CTRL+X, then Y, then Enter to save).
+
+3. Start all your microservices:
+   sudo docker-compose --env-file .env up -d --build
+
+4. Verify they are running:
+   sudo docker ps
+   (You should see api-gateway, auth-service, transaction-service, scoring-service, notification-service, and nginx running).
+
+STEP 5: DEPLOY FRONTEND ON VERCEL
+--------------------------------------------------
+Your backend API is now running at: http://<YOUR_PUBLIC_IP>
+1. Go to vercel.com and import your GitHub repository.
+2. Select the `client` folder.
+3. Add Environment Variable:
+   VITE_API_URL = http://<YOUR_PUBLIC_IP>
+4. Click Deploy.
+
+Your entire stack is now deployed for free!
