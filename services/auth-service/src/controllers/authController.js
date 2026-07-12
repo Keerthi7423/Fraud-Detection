@@ -146,15 +146,37 @@ const sendTokenResponse = (user, statusCode, res) => {
     }
   );
 
-  res.status(statusCode).json({
+  const options = {
+    expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax', // Use 'lax' for easier local development across ports, switch to 'strict' in prod if on same domain
+  };
+
+  res.status(statusCode).cookie('token', token, options).json({
     success: true,
-    token,
+    token, // We can still return it for legacy apps or debugging, but the client shouldn't store it
     user: {
       id: user._id,
       name: user.name,
       email: user.email,
       role: user.role,
     },
+  });
+};
+
+// @desc    Logout user / clear cookie
+// @route   POST /auth/logout
+// @access  Public
+exports.logout = async (req, res, next) => {
+  res.cookie('token', 'none', {
+    expires: new Date(Date.now() + 10 * 1000),
+    httpOnly: true,
+  });
+
+  res.status(200).json({
+    success: true,
+    data: {},
   });
 };
 

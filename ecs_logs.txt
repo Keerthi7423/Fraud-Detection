@@ -1,6 +1,0 @@
-{
-    "events": [
-        {
-            "logStreamName": "ecs/transaction-service/28f5bfb0c4454c91a308d687a55074f4",
-            "timestamp": 1779758661902,
-            "message": 
