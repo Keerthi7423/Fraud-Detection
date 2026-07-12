@@ -50,7 +50,8 @@ app.post('/internal/score', async (req, res) => {
 
     // Call notification-service synchronously
     try {
-      await fetch('http://localhost:3004/internal/audit', {
+      const notificationUrl = process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3004';
+      await fetch(`${notificationUrl}/internal/audit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -77,9 +78,6 @@ app.post('/internal/score', async (req, res) => {
 
 // Connect to MongoDB
 connectDB().then(() => {
-  // Start SQS Worker
-  require('./workers/scoringWorker');
-  
   app.listen(PORT, () => {
     console.log(`AI Scoring Service running on port ${PORT}`);
   });

@@ -64,8 +64,7 @@ app.post('/internal/audit', async (req, res) => {
     }
 });
 
-// Start Worker
-require('./workers/notificationWorker');
+// Start Worker removed
 
 const PORT = process.env.PORT || 3004;
 const server = require('http').createServer(app);
