@@ -12,17 +12,19 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     setCredentials: (state, action) => {
-      const { user } = action.payload;
+      const { user, token } = action.payload;
       state.user = user;
       state.error = null;
       state.isLoading = false;
       localStorage.setItem('user', JSON.stringify(user));
+      if (token) localStorage.setItem('token', token);
     },
     logout: (state) => {
       state.user = null;
       state.queueCount = 0;
       state.isLoading = false;
       localStorage.removeItem('user');
+      localStorage.removeItem('token');
     },
     setLoading: (state, action) => {
       state.isLoading = action.payload;
