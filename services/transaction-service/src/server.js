@@ -19,9 +19,12 @@ const app = express();
 // 1. WEBHOOK FIRST (Must be before any JSON/Body parsers)
 app.post('/transactions/webhook', express.raw({ type: 'application/json' }), webhookController.handleWebhook);
 
+const cookieParser = require('cookie-parser');
+
 // 2. GLOBAL MIDDLEWARE
 app.use(cors({ origin: ['http://localhost:5173', 'https://d49m8z8w0jzwy.cloudfront.net', 'http://d49m8z8w0jzwy.cloudfront.net'] }));
 app.use(express.json());
+app.use(cookieParser());
 app.use(morgan('dev'));
 app.use(helmet());
 
