@@ -20,7 +20,7 @@ const setupInterceptors = (instance) => {
     (response) => response,
     (error) => {
       if (error.response && error.response.status === 401) {
-        localStorage.removeItem('user'); // We still clear the user object
+        localStorage.removeItem('user');
         if (window.location.pathname !== '/login') {
           window.location.href = '/login';
         }

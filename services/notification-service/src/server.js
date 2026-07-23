@@ -3,6 +3,7 @@ const express = require('express');
 const morgan = require('morgan');
 const helmet = require('helmet');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
 
 // Connect to Database
@@ -11,10 +12,11 @@ connectDB();
 const app = express();
 
 // Middleware
-app.use(express.json());
-app.use(morgan('dev'));
 app.use(helmet());
 app.use(cors({ origin: ['http://localhost:5173', 'https://d49m8z8w0jzwy.cloudfront.net', 'http://d49m8z8w0jzwy.cloudfront.net'] }));
+app.use(express.json());
+app.use(cookieParser());
+app.use(morgan('dev'));
 
 // Routes
 app.use('/audit', require('./routes/auditRoutes'));
