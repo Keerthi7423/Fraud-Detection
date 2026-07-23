@@ -149,8 +149,8 @@ const sendTokenResponse = (user, statusCode, res) => {
   const options = {
     expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax', // Use 'lax' for easier local development across ports, switch to 'strict' in prod if on same domain
+    secure: true, // MUST be true for cross-domain cookies
+    sameSite: 'none', // MUST be 'none' for cross-domain cookies (Vercel -> AWS)
   };
 
   res.status(statusCode).cookie('token', token, options).json({
