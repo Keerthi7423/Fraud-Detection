@@ -13,7 +13,7 @@ const app = express();
 
 // Middleware
 app.use(helmet());
-app.use(cors({ origin: ['http://localhost:5173', 'https://d49m8z8w0jzwy.cloudfront.net', 'http://d49m8z8w0jzwy.cloudfront.net'] }));
+app.use(cors({ origin: ['http://localhost:5173', 'https://d49m8z8w0jzwy.cloudfront.net', 'http://d49m8z8w0jzwy.cloudfront.net', 'https://fraud-detection-theta-two.vercel.app'] }));
 app.use(express.json());
 app.use(cookieParser());
 app.use(morgan('dev'));

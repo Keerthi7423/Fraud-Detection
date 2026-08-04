@@ -22,7 +22,7 @@ app.post('/transactions/webhook', express.raw({ type: 'application/json' }), web
 const cookieParser = require('cookie-parser');
 
 // 2. GLOBAL MIDDLEWARE
-app.use(cors({ origin: ['http://localhost:5173', 'https://d49m8z8w0jzwy.cloudfront.net', 'http://d49m8z8w0jzwy.cloudfront.net'] }));
+app.use(cors({ origin: ['http://localhost:5173', 'https://d49m8z8w0jzwy.cloudfront.net', 'http://d49m8z8w0jzwy.cloudfront.net', 'https://fraud-detection-theta-two.vercel.app'] }));
 app.use(express.json());
 app.use(cookieParser());
 app.use(morgan('dev'));
