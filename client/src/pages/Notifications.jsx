@@ -20,7 +20,7 @@ const Notifications = () => {
         const dynamicNotifs = txns
           .slice(0, 5)
           .map((t, idx) => {
-            let title = 'New Transaction';
+            let title;
             let type = 'info';
             
             if (t.status === 'blocked' || t.status === 'fraudulent') {
