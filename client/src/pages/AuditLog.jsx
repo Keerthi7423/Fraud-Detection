@@ -14,10 +14,6 @@ import Pagination from '../components/common/Pagination';
 const AuditLog = () => {
   const { user } = useSelector((state) => state.auth);
 
-  if (user?.role !== 'admin') {
-    return <Navigate to="/dashboard" replace />;
-  }
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [logs, setLogs] = useState([]);
@@ -108,6 +104,10 @@ const AuditLog = () => {
         return { color: '#94A3B8', icon: <ShieldCheck className="w-4 h-4 mr-2" /> };
     }
   };
+
+  if (user?.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return (
     <div className="space-y-6">
