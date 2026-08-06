@@ -22,7 +22,8 @@ const sendToScoringQueue = async (transaction) => {
 };
 
 const sendToAuditQueue = async (data) => {
-  const notificationUrl = process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3004';
+  const isProd = process.env.NODE_ENV === 'production';
+  const notificationUrl = process.env.NOTIFICATION_SERVICE_URL || (isProd ? 'http://notification-service:3004' : 'http://localhost:3004');
   try {
     fetch(`${notificationUrl}/internal/audit`, {
       method: 'POST',
