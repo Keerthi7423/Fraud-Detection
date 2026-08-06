@@ -1,6 +1,6 @@
 const Transaction = require('../models/Transaction');
 const generateMockTransaction = require('../utils/generateMockTransaction');
-const { sendToScoringQueue } = require('../services/queueService');
+const { sendToScoringQueue, sendToAuditQueue } = require('../services/queueService');
 
 // @desc    Get all transactions with filters
 // @route   GET /transactions
@@ -139,6 +139,8 @@ exports.updateTransactionStatus = async (req, res) => {
       });
     }
 
+    const previousStatus = transaction.status;
+
     transaction.status = dbStatus;
     transaction.reviewNote = reviewNote;
     transaction.reviewedBy = req.user.id;
@@ -146,6 +148,19 @@ exports.updateTransactionStatus = async (req, res) => {
     transaction.reviewedAt = new Date();
 
     await transaction.save();
+
+    // Fire and forget - send audit log
+    sendToAuditQueue({
+      messageType: 'TRANSACTION_REVIEWED',
+      transactionId: transaction.transactionId,
+      analystId: req.user.id,
+      analystName: req.user.name,
+      action: status,
+      note: reviewNote,
+      previousStatus,
+      newStatus: dbStatus,
+      riskScore: transaction.riskScore
+    });
 
     res.status(200).json({ success: true, transaction });
   } catch (error) {

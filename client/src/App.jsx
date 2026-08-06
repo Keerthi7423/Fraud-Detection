@@ -7,7 +7,6 @@ import TransactionFeed from './pages/TransactionFeed';
 import TransactionDetail from './pages/TransactionDetail';
 import ReviewQueue from './pages/ReviewQueue';
 import AuditLog from './pages/AuditLog';
-import AdminPanel from './pages/AdminPanel';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/common/Layout';
 import Notifications from './pages/Notifications';
@@ -34,7 +33,6 @@ function App() {
             <Route path="/notifications" element={<Notifications />} />
             <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
               <Route path="/audit" element={<AuditLog />} />
-              <Route path="/admin" element={<AdminPanel />} />
             </Route>
           </Route>
         </Route>
