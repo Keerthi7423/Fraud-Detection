@@ -146,11 +146,12 @@ const sendTokenResponse = (user, statusCode, res) => {
     }
   );
 
+  const isProd = process.env.NODE_ENV === 'production';
   const options = {
     expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
     httpOnly: true,
-    secure: true, // MUST be true for cross-domain cookies
-    sameSite: 'none', // MUST be 'none' for cross-domain cookies (Vercel -> AWS)
+    secure: isProd, // MUST be true for cross-domain cookies in prod
+    sameSite: isProd ? 'none' : 'lax', 
   };
 
   res.status(statusCode).cookie('token', token, options).json({

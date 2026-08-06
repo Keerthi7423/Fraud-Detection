@@ -21,4 +21,17 @@ const sendToScoringQueue = async (transaction) => {
   }
 };
 
-module.exports = { sendToScoringQueue };
+const sendToAuditQueue = async (data) => {
+  const notificationUrl = process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3004';
+  try {
+    fetch(`${notificationUrl}/internal/audit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).catch(err => console.error("Audit logging failed:", err.message));
+  } catch(err) {
+    console.error(err);
+  }
+};
+
+module.exports = { sendToScoringQueue, sendToAuditQueue };

@@ -7,7 +7,6 @@ import {
   ClipboardList, 
   LogOut,
   Shield,
-  Settings,
   X
 } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -41,10 +40,6 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { name: 'Review Queue', path: '/queue', icon: AlertTriangle, badge: queueCount },
     { name: 'Audit Log', path: '/audit', icon: ClipboardList },
   ];
-
-  if (user?.role === 'admin') {
-    navItems.push({ name: 'Admin Panel', path: '/admin', icon: Settings });
-  }
 
   const handleLogout = async () => {
     try {
