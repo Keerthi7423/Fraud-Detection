@@ -1,51 +1,46 @@
-# FraudGuard — AI Fraud Detection (Microservices on AWS)
+# FraudGuard — AI Fraud Detection (Microservices Architecture)
 
 A high-performance fraud detection system built with a microservices architecture, AWS integration, and real-time AI-powered scoring.
 
-**Live Demo:** [https://d49m8z8w0jzwy.cloudfront.net](https://d49m8z8w0jzwy.cloudfront.net)
+**Live Demo:** [https://d49m8z8w0jzwy.cloudfront.net](https://d49m8z8w0jzwy.cloudfront.net) *(Note: URL may change based on Vercel/CloudFront deployment)*
 
-## Architecture
+## 🏗 Architecture
 
 ![Architecture Diagram](https://placehold.co/800x400/1A1D27/FFFFFF?text=FraudGuard+Microservices+Architecture)
 
-## Screenshots
+## 📸 Screenshots
 
 <p align="center">
-  <img src="./screenshots/dashboard.png" width="30%" alt="Dashboard" />
-  <img src="./screenshots/feed.png" width="30%" alt="Transaction Feed" />
-  <img src="./screenshots/detail.png" width="30%" alt="Transaction Detail" />
+  <img src="./client/public/dashboard1.png" width="30%" alt="Dashboard" />
+  <img src="./client/public/transaction.png" width="30%" alt="Transaction Feed" />
+  <img src="./client/public/singletranscation.png" width="30%" alt="Transaction Detail" />
 </p>
 
-## Services
+## 🧩 Services Overview
+
+The backend is composed of modular microservices communicating via HTTP and Amazon SQS queues.
 
 | Service Name | Tech Stack | Port | Purpose |
 |--------------|------------|------|---------|
-| Auth Service | Node, Express, MongoDB | 3001 | User registration, login, JWT auth |
-| Transaction Service | Node, Express, MongoDB | 3002 | CRUD for transactions, pushes to SQS |
-| AI Scoring Service | Node, Gemini API | 3003 | Async worker, scores transactions via AI |
-| Notification Service | Node, Express, MongoDB | 3004 | Audit logs and real-time notifications |
+| **API Gateway** | Node, Express, Proxy | `8080` | Single entry point, proxies requests to microservices, handles CORS |
+| **Auth Service** | Node, Express, MongoDB | `3001` | User registration, login, JWT auth |
+| **Transaction Service** | Node, Express, MongoDB | `3002` | CRUD for transactions, webhook handling (Razorpay), pushes to SQS |
+| **AI Scoring Service** | Node, Gemini API | `3003` | Async worker, scores transactions for fraud via Google Gemini AI |
+| **Notification Service**| Node, Express, Socket.io | `3004` | Audit logs and real-time dashboard notifications (WebSockets) |
 
-## AWS Architecture
-
-- **Amazon ECS (Fargate):** Container orchestration for the 4 microservices
-- **Amazon SQS:** Message queuing for asynchronous communication between services
-- **Application Load Balancer (ALB):** Routes traffic to appropriate ECS tasks
-- **Amazon ECR:** Private container registry for Docker images
-- **Amazon S3 & CloudFront:** Hosting and CDN for the React frontend
-- **AWS Secrets Manager:** Secure storage of environment variables
-
-## Tech Stack
+## 🛠 Tech Stack
 
 | Category | Technologies |
 |----------|--------------|
-| **Frontend** | React.js, Tailwind CSS, Redux Toolkit, Recharts |
+| **Frontend** | React.js (Vite), Tailwind CSS, Redux Toolkit, Recharts |
 | **Backend** | Node.js, Express.js |
 | **Database** | MongoDB Atlas |
-| **Cloud** | AWS (ECS, SQS, S3, CloudFront, ALB), Docker |
+| **Cloud & DevOps** | AWS (EC2, SQS, S3, CloudFront), Docker, NGINX |
 | **AI** | Google Gemini API |
 | **CI/CD** | GitHub Actions |
+| **Payments Integration**| Razorpay Webhooks |
 
-## Local Setup
+## 🚀 Local Setup
 
 1. **Clone the repository**
    ```bash
@@ -54,38 +49,43 @@ A high-performance fraud detection system built with a microservices architectur
    ```
 
 2. **Set up Environment Variables**
-   Create a `.env` file in each service directory (`auth-service`, `transaction-service`, `ai-scoring-service`, `notification-service`) with the required keys (see below).
+   Create a `.env` file in each service directory with the required keys:
 
-3. **Run with Docker Compose**
+   - **API Gateway (`services/api-gateway/.env`):** `PORT=8080`, `AUTH_SERVICE_URL`, `TRANSACTION_SERVICE_URL`, `NOTIFICATION_SERVICE_URL`
+   - **Auth Service (`services/auth-service/.env`):** `PORT=3001`, `MONGO_URI`, `JWT_SECRET`
+   - **Transaction Service (`services/transaction-service/.env`):** `PORT=3002`, `MONGO_URI`, `SQS_QUEUE_URL`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`
+   - **AI Scoring Service (`services/ai-scoring-service/.env`):** `PORT=3003`, `MONGO_URI`, `SQS_QUEUE_URL`, `GEMINI_API_KEY`
+   - **Notification Service (`services/notification-service/.env`):** `PORT=3004`, `MONGO_URI`, `SQS_QUEUE_URL`
+   - **Frontend (`client/.env`):** `VITE_API_URL=http://localhost:8080`
+
+3. **Install Dependencies and Run**
+   You can run the microservices using Docker Compose (if configured) or individually by running `npm install` and `npm run dev` in each service's directory.
+
+   *For Frontend:*
    ```bash
-   docker-compose up --build
+   cd client
+   npm install
+   npm run dev
    ```
 
 4. **Access the application**
    - Frontend: `http://localhost:5173`
-   - APIs: `http://localhost:3001` to `3004`
+   - API Gateway: `http://localhost:8080`
 
-## Environment Variables Needed
-
-**Auth Service:** `PORT`, `MONGO_URI`, `JWT_SECRET`
-**Transaction Service:** `PORT`, `MONGO_URI`, `SQS_QUEUE_URL`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`
-**AI Scoring Service:** `PORT`, `MONGO_URI`, `SQS_QUEUE_URL`, `GEMINI_API_KEY`
-**Notification Service:** `PORT`, `MONGO_URI`, `SQS_QUEUE_URL`
-
-## CI/CD Pipeline
+## 🔄 CI/CD Pipeline
 
 The project uses **GitHub Actions** for automated deployments:
-- **Backend Services:** Any push modifying the `services/` folder triggers a build and push to AWS ECR, followed by an ECS task update.
-- **Frontend:** Pushes to the `client/` folder trigger an optimized build, syncs with the S3 bucket, and invalidates the CloudFront cache.
+- **Backend Services:** Pushes to the `prod` branch trigger building Docker images, pushing to a container registry, and triggering a rolling update on the AWS EC2 instance.
+- **Frontend:** Handled automatically via Vercel or S3/CloudFront deployments on commit.
 
-## Future Improvements
+## 🔮 Future Improvements
 
-- Add WebSocket support for real-time dashboard updates
-- Implement a caching layer with Redis to optimize frequent queries
-- Add multi-factor authentication (MFA) for analyst accounts
-- Introduce an automated retry mechanism for failed AI scoring attempts
+- Implement a caching layer with Redis to optimize frequent queries.
+- Add multi-factor authentication (MFA) for analyst accounts.
+- Introduce an automated retry mechanism for failed AI scoring attempts.
+- Scale services individually based on load using Kubernetes.
 
-## Author
+## 👨‍💻 Author
 
 **[Your Name]**
 [LinkedIn](https://linkedin.com/in/yourprofile) | [GitHub](https://github.com/yourusername)
