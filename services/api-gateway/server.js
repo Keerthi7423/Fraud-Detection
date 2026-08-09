@@ -11,7 +11,7 @@ app.use(cookieParser());
 
 // Apply CORS at the gateway level
 app.use(cors({
-  origin: ['http://localhost:5173', 'https://d1ir3ognrpz0l7.cloudfront.net', 'http://d1ir3ognrpz0l7.cloudfront.net'], // Your frontend URL
+  origin: ['http://localhost:5173', 'https://d1ir3ognrpz0l7.cloudfront.net', 'http://d1ir3ognrpz0l7.cloudfront.net', 'https://d49m8z8w0jzwy.cloudfront.net', 'http://d49m8z8w0jzwy.cloudfront.net', 'https://fraud-detection-theta-two.vercel.app'], // Your frontend URL
   credentials: true
 }));
 
