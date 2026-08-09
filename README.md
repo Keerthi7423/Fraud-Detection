@@ -87,5 +87,5 @@ The project uses **GitHub Actions** for automated deployments:
 
 ## 👨‍💻 Author
 
-**[Your Name]**
-[LinkedIn](https://linkedin.com/in/yourprofile) | [GitHub](https://github.com/yourusername)
+**Keerthi Kumar V**
+[LinkedIn](www.linkedin.com/in/kkv074) | [GitHub](https://github.com/Keerthi7423)
