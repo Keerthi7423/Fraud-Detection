@@ -1,5 +1,6 @@
 const sendToScoringQueue = async (transaction) => {
-  const scoringUrl = process.env.SCORING_SERVICE_URL || 'http://localhost:3003';
+  const isProd = process.env.NODE_ENV === 'production';
+  const scoringUrl = process.env.SCORING_SERVICE_URL || (isProd ? 'http://ai-scoring-service:3003' : 'http://localhost:3003');
   try {
     fetch(`${scoringUrl}/internal/score`, {
       method: 'POST',
