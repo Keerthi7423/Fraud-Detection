@@ -2,8 +2,7 @@
 
 A high-performance fraud detection system built with a microservices architecture, AWS integration, and real-time AI-powered scoring.
 
-**Live Demo:** [https://d49m8z8w0jzwy.cloudfront.net](https://d49m8z8w0jzwy.cloudfront.net) *(Note: URL may change based on Vercel/CloudFront deployment)*
-
+**Live Demo:** [https://fraud-detection-theta-two.vercel.app]
 ## 🏗 Architecture
 
 ![Architecture Diagram](https://placehold.co/800x400/1A1D27/FFFFFF?text=FraudGuard+Microservices+Architecture)
@@ -87,5 +86,5 @@ The project uses **GitHub Actions** for automated deployments:
 
 ## 👨‍💻 Author
 
-**[Your Name]**
-[LinkedIn](https://linkedin.com/in/yourprofile) | [GitHub](https://github.com/yourusername)
+**Keerthi Kumar V**
+[LinkedIn](www.linkedin.com/in/kkv074) | [GitHub](https://github.com/Keerthi7423)
