@@ -50,7 +50,8 @@ app.post('/internal/score', async (req, res) => {
 
     // Call notification-service synchronously
     try {
-      const notificationUrl = process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3004';
+      const isProd = process.env.NODE_ENV === 'production';
+      const notificationUrl = process.env.NOTIFICATION_SERVICE_URL || (isProd ? 'http://notification-service:3004' : 'http://localhost:3004');
       await fetch(`${notificationUrl}/internal/audit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
