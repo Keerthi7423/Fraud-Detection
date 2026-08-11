@@ -5,7 +5,39 @@ A high-performance fraud detection system built with a microservices architectur
 **Live Demo:** [https://fraud-detection-theta-two.vercel.app]
 ## 🏗 Architecture
 
-![Architecture Diagram](https://placehold.co/800x400/1A1D27/FFFFFF?text=FraudGuard+Microservices+Architecture)
+```mermaid
+graph TD
+    Client[React Dashboard / Vercel] -->|HTTP/REST| APIGateway(API Gateway)
+    
+    APIGateway -->|Auth Routes| AuthService(Auth Service)
+    APIGateway -->|Txn Routes| TxnService(Transaction Service)
+    APIGateway -->|WebSocket Auth| NotifService(Notification Service)
+    
+    AuthService --> DB[(MongoDB Atlas)]
+    TxnService --> DB
+    
+    TxnService -->|Internal REST| AIService(AI Scoring Service)
+    
+    AIService -->|Fraud Analysis| Gemini[Google Gemini API]
+    Gemini -->|Score & Reasons| AIService
+    
+    AIService --> DB
+    AIService -->|Internal Audit| NotifService
+    
+    NotifService -->|Socket.io Real-time| Client
+    
+    Webhook[Razorpay Webhook] -->|Payment Data| APIGateway
+
+    classDef aws fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:black;
+    classDef frontend fill:#61DAFB,stroke:#20232A,stroke-width:2px,color:black;
+    classDef db fill:#47A248,stroke:#232F3E,stroke-width:2px,color:white;
+    classDef external fill:#EA4335,stroke:#232F3E,stroke-width:2px,color:white;
+    
+    class APIGateway,AuthService,TxnService,AIService,NotifService aws;
+    class Client frontend;
+    class DB db;
+    class Gemini,Webhook external;
+```
 
 ## 📸 Screenshots
 
