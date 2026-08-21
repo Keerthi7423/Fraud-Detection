@@ -72,7 +72,7 @@ const PORT = process.env.PORT || 3004;
 const server = require('http').createServer(app);
 require('./config/socket').init(server);
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
     console.log(`Notification Service running on port ${PORT}`);
 });
 

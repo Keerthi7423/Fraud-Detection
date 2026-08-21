@@ -79,7 +79,7 @@ app.post('/internal/score', async (req, res) => {
 
 // Connect to MongoDB
 connectDB().then(() => {
-  app.listen(PORT, () => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`AI Scoring Service running on port ${PORT}`);
   });
 });
